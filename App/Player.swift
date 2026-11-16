@@ -71,6 +71,8 @@ final class Player: ObservableObject {
     func transfer(_ d: Device) async { if let id = d.id { await send("PUT", "/me/player", ["device_ids": [id], "play": true]) } }
 
     func play(_ t: Track) async {
+        // No active device yet: wake the first available one (e.g. your PC) so the tap just works.
+        if state?.device == nil, let d = devices.first { await transfer(d) }
         if let c = context { await send("PUT", "/me/player/play", ["context_uri": c, "offset": ["uri": t.uri]]) }
         else { await send("PUT", "/me/player/play", ["uris": [t.uri]]) }
     }

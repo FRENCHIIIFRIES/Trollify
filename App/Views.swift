@@ -160,6 +160,7 @@ struct NowPlaying: View {
                 }
                 ctl("forward.fill") { await player.next() }
                 Menu {
+                    if player.devices.isEmpty { Button("No devices - open Spotify on your PC and press play") {}.disabled(true) }
                     ForEach(player.devices, id: \.ident) { d in
                         Button((d.is_active ? "• " : "") + d.name) { Task { await player.transfer(d) } }
                     }
