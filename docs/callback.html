@@ -1,4 +1,22 @@
-<!doctype html><meta charset="utf-8"><title>Returning to Trollify</title>
-<body style="background:#000;color:#fff;font-family:monospace;text-align:center;padding-top:20vh">
-<p>Returning to Trollify...</p>
-<script>location.replace("trollify://callback" + location.search);</script>
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Trollify</title>
+<body style="background:#000;color:#fff;font-family:monospace;text-align:center;padding-top:10vh">
+<p id="msg">Returning to Trollify...</p>
+<div id="qr" style="display:inline-block;background:#fff;padding:16px;visibility:hidden"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const CLIENT="4a7c3b622127442984f1ec1a87d22b78";
+const q=new URLSearchParams(location.search), v=localStorage.getItem("pkce_verifier");
+if(v&&q.get("code")) pc();
+else if(v&&q.get("error")) msg.textContent="Spotify said: "+q.get("error");
+else location.replace("trollify://callback"+location.search); // normal iPad login
+async function pc(){ // login done on a PC: show a QR for the iPad to scan
+  msg.textContent="Getting your token...";
+  const r=await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({grant_type:"authorization_code",code:q.get("code"),redirect_uri:location.origin+location.pathname,client_id:CLIENT,code_verifier:v})});
+  const j=await r.json(); localStorage.removeItem("pkce_verifier");
+  if(!j.refresh_token){msg.textContent="Failed: "+JSON.stringify(j);return}
+  msg.textContent="On the iPad open Trollify > SCAN QR FROM PC. Keep this QR private, then close this page.";
+  qr.style.visibility="visible";
+  new QRCode(qr,{text:"trollify://pair?rt="+encodeURIComponent(j.refresh_token),width:360,height:360,correctLevel:QRCode.CorrectLevel.L});
+}
+</script>

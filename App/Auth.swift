@@ -59,6 +59,17 @@ final class Auth: ObservableObject {
         s.start()
     }
 
+    /// Login done on a PC: the QR carries a refresh token; trade it for an access token.
+    func pair(_ text: String) async {
+        guard text.hasPrefix("trollify://pair"),
+              let rt = URLComponents(string: text)?.queryItems?.first(where: { $0.name == "rt" })?.value else {
+            error = "That QR isn't from the Trollify login page."; return
+        }
+        d.set(rt, forKey: "rt"); d.removeObject(forKey: "at"); d.removeObject(forKey: "exp")
+        do { _ = try await token(); loggedIn = true; error = nil }
+        catch { self.error = "Pairing failed: \(error)"; d.removeObject(forKey: "rt"); loggedIn = false }
+    }
+
     func logout() {
         ["at", "rt", "exp"].forEach { d.removeObject(forKey: $0) }
         loggedIn = false

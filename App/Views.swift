@@ -44,6 +44,7 @@ struct RootView: View {
 
 struct LoginView: View {
     @ObservedObject var auth: Auth
+    @State private var scanning = false
     var body: some View {
         VStack(spacing: 28) {
             HStack(spacing: 6) { ForEach(0..<5) { i in Circle().fill(i == 0 ? Theme.red : .white).frame(width: 12, height: 12) } }
@@ -53,12 +54,21 @@ struct LoginView: View {
                 Text("CONNECT SPOTIFY").font(Theme.mono(16, .bold)).foregroundColor(.black)
                     .padding(.horizontal, 32).padding(.vertical, 16).background(Capsule().fill(Color.white))
             }
+            Button { scanning = true } label: {
+                Text("SCAN QR FROM PC").font(Theme.mono(14, .bold)).foregroundColor(.white)
+                    .padding(.horizontal, 28).padding(.vertical, 14).overlay(Capsule().stroke(Color.white, lineWidth: 1.5))
+            }
+            Text("Stuck on Spotify's page? On your PC open\nfrenchiiifries.github.io/Trollify/login.html")
+                .font(Theme.mono(11)).foregroundColor(Theme.dim).multilineTextAlignment(.center)
             if let e = auth.error {
                 Text(e).font(Theme.mono(12)).foregroundColor(Theme.red).multilineTextAlignment(.center).padding(.horizontal, 40)
             }
             if Config.clientID.hasPrefix("PASTE") {
                 Text("Set your Client ID in Config.swift first.").font(Theme.mono(12)).foregroundColor(Theme.red)
             }
+        }
+        .sheet(isPresented: $scanning) {
+            QRScanner { code in scanning = false; Task { await auth.pair(code) } }.ignoresSafeArea()
         }
     }
 }
