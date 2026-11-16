@@ -6,6 +6,7 @@ struct Shell: View {
     @ObservedObject var updater: Updater
     @AppStorage("opt.pcWidth") private var pcWidth = 0.38
     @StateObject private var player: Player
+    @StateObject private var engine = Engine()
     @StateObject private var lyrics = Lyrics()
     @StateObject private var web = WebStore()
     @StateObject private var tiles = TileStore()
@@ -45,11 +46,12 @@ struct Shell: View {
             if current != "now" { MiniPlayer(player: player) { current = "now" } }
         }
         .task { await player.start() }
+        .task { if UserDefaults.standard.bool(forKey: "engine.ok") { engine.start() } }
     }
 
     @ViewBuilder private var content: some View {
         switch current {
-        case "home": HomeView(player: player, tiles: tiles) { id in withAnimation(.easeOut(duration: 0.2)) { current = id } }
+        case "home": HomeView(player: player, tiles: tiles, engine: engine) { id in withAnimation(.easeOut(duration: 0.2)) { current = id } }
         case "music": MusicView(auth: auth, player: player)
         case "now": NowScreen(player: player, lyrics: lyrics)
         case "settings": SettingsView(auth: auth, updater: updater, tiles: tiles)

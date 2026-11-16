@@ -11,6 +11,9 @@
 <key>MinimumOSVersion</key><string>15.0</string>
 <key>UIDeviceFamily</key><array><integer>2</integer></array>
 <key>NSCameraUsageDescription</key><string>Scan the login QR code shown on your PC.</string>
+<key>NSLocalNetworkUsageDescription</key><string>Lets other Spotify apps on your Wi-Fi find this iPad as a player.</string>
+<key>NSBonjourServices</key><array><string>_spotify-connect._tcp</string></array>
+<key>UIBackgroundModes</key><array><string>audio</string></array>
 <key>UILaunchScreen</key><dict/>
 <key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string><string>UIInterfaceOrientationPortrait</string></array>
 </dict></plist>

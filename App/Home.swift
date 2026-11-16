@@ -4,6 +4,7 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var player: Player
     @ObservedObject var tiles: TileStore
+    @ObservedObject var engine: Engine
     var go: (String) -> Void
     @State private var adding = false
     @State private var battery = 0
@@ -70,8 +71,12 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             DotText(text: "BAT \(battery)%", dot: 3.4)
             DotText(text: String("OUT \(player.state?.device?.name ?? "NO DEVICE")".dotSafe.prefix(20)), dot: 2.6, color: Theme.dim)
+            Button { engine.start() } label: {
+                DotText(text: engine.running ? "PLAYER ON" : "START PLAYER", dot: 2.6, color: engine.running ? .white : Theme.red)
+            }
+            DotText(text: String(engine.status.dotSafe.prefix(30)), dot: 2, color: Theme.dim)
         }
-        .padding(16).frame(width: 280, alignment: .leading).frame(minHeight: 116)
+        .padding(16).frame(width: 300, alignment: .leading).frame(minHeight: 116)
         .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
     }
 

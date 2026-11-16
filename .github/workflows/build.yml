@@ -8,12 +8,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: brew install ldid
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Build librespot player (Rust)
+        run: |
+          cd rust
+          IPHONEOS_DEPLOYMENT_TARGET=15.0 cargo build --release --target aarch64-apple-ios
       - name: Build unsigned IPA
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           APP=build/Payload/Trollify.app
           mkdir -p "$APP"
-          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -sdk "$SDK" -parse-as-library -O App/*.swift -o "$APP/Trollify"
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -sdk "$SDK" -parse-as-library -O App/*.swift -o "$APP/Trollify" \
+            -L rust/target/aarch64-apple-ios/release -ltrollify_player \
+            -framework AudioToolbox -framework CoreAudio -framework CoreFoundation -framework Security -framework SystemConfiguration -framework AVFoundation -lresolv -lc++
           cp App/Info.plist "$APP/"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$APP/Info.plist"
           ldid -Sentitlements.plist "$APP/Trollify"
@@ -23,6 +35,7 @@ jobs:
           name: Trollify-ipa
           path: build/Trollify.ipa
       - name: Publish release for in-app updates
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "build-${{ github.run_number }}" build/Trollify.ipa --latest --title "Build ${{ github.run_number }}" --notes "Auto-built from ${{ github.sha }}"
