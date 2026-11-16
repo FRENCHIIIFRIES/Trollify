@@ -17,6 +17,8 @@ jobs:
       - name: Build librespot player (Rust)
         run: |
           cd rust
+          cargo fetch --target aarch64-apple-ios
+          python3 patch_sysinfo.py
           IPHONEOS_DEPLOYMENT_TARGET=15.0 cargo build --release --target aarch64-apple-ios
       - name: Build unsigned IPA
         run: |
