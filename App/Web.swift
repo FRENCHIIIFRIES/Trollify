@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 /// A website shown as a tab (YouTube, Instagram, PC mirror, or a custom deck tile).
-struct Page: Identifiable, Codable, Hashable {
+struct WebTab: Identifiable, Codable, Hashable {
     var id: String
     var code: String       // 3-letter label on the side rail
     var title: String
@@ -10,21 +10,21 @@ struct Page: Identifiable, Codable, Hashable {
     var desktop = false    // ask for the desktop version of the site
 }
 
-extension Page {
-    static let youtube = Page(id: "yt", code: "YT", title: "YOUTUBE", url: "https://www.youtube.com")
-    static let instagram = Page(id: "ig", code: "IG", title: "INSTAGRAM", url: "https://www.instagram.com")
+extension WebTab {
+    static let youtube = WebTab(id: "yt", code: "YT", title: "YOUTUBE", url: "https://www.youtube.com")
+    static let instagram = WebTab(id: "ig", code: "IG", title: "INSTAGRAM", url: "https://www.instagram.com")
     // Google's browser client for Chrome Remote Desktop; may not work in iOS 15 WebKit (untested).
-    static let pc = Page(id: "pc", code: "PC", title: "PC MIRROR", url: "https://remotedesktop.google.com/access", desktop: true)
+    static let pc = WebTab(id: "pc", code: "PC", title: "PC MIRROR", url: "https://remotedesktop.google.com/access", desktop: true)
 }
 
 /// Custom deck tiles, saved on the device.
 @MainActor
 final class TileStore: ObservableObject {
-    @Published var custom: [Page] = [] { didSet { save() } }
+    @Published var custom: [WebTab] = [] { didSet { save() } }
 
     init() {
         if let d = UserDefaults.standard.data(forKey: "tiles"),
-           let p = try? JSONDecoder().decode([Page].self, from: d) { custom = p }
+           let p = try? JSONDecoder().decode([WebTab].self, from: d) { custom = p }
     }
 
     func add(name: String, url: String) {
@@ -32,10 +32,10 @@ final class TileStore: ObservableObject {
         if !u.contains("://") { u = "https://" + u }
         let n = name.trimmingCharacters(in: .whitespaces)
         guard URL(string: u) != nil, !n.isEmpty else { return }
-        custom.append(Page(id: UUID().uuidString, code: String(n.uppercased().prefix(3)), title: n.uppercased(), url: u))
+        custom.append(WebTab(id: UUID().uuidString, code: String(n.uppercased().prefix(3)), title: n.uppercased(), url: u))
     }
 
-    func remove(_ p: Page) { custom.removeAll { $0.id == p.id } }
+    func remove(_ p: WebTab) { custom.removeAll { $0.id == p.id } }
 
     private func save() {
         if let d = try? JSONEncoder().encode(custom) { UserDefaults.standard.set(d, forKey: "tiles") }
@@ -47,7 +47,7 @@ final class TileStore: ObservableObject {
 final class WebStore: ObservableObject {
     private var views: [String: WKWebView] = [:]
 
-    func view(for p: Page) -> WKWebView {
+    func view(for p: WebTab) -> WKWebView {
         if let v = views[p.id] { return v }
         let cfg = WKWebViewConfiguration()
         cfg.allowsInlineMediaPlayback = true
@@ -65,7 +65,7 @@ final class WebStore: ObservableObject {
 
 struct WebRep: UIViewRepresentable {
     let store: WebStore
-    let page: Page
+    let page: WebTab
     func makeUIView(context: Context) -> WKWebView { store.view(for: page) }
     func updateUIView(_ v: WKWebView, context: Context) {}
 }
@@ -73,7 +73,7 @@ struct WebRep: UIViewRepresentable {
 /// Web tab with a small dot-matrix toolbar.
 struct WebPane: View {
     let store: WebStore
-    let page: Page
+    let page: WebTab
     var trailing: AnyView = AnyView(EmptyView())
 
     var body: some View {

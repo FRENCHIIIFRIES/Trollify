@@ -16,7 +16,7 @@ struct Shell: View {
         _player = StateObject(wrappedValue: Player(api: API(auth)))
     }
 
-    private var pages: [Page] { [.youtube, .instagram] + tiles.custom }
+    private var pages: [WebTab] { [.youtube, .instagram] + tiles.custom }
 
     var body: some View {
         GeometryReader { g in

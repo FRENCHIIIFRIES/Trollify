@@ -25,8 +25,8 @@ struct HomeView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 14)], spacing: 14) {
                     tile("MUSIC", "SPOTIFY", "music")
                     tile("NOW", "PLAYER + LYRICS", "now")
-                    tile(Page.youtube.title, "VIDEOS", Page.youtube.id)
-                    tile(Page.instagram.title, "FEED", Page.instagram.id)
+                    tile(WebTab.youtube.title, "VIDEOS", WebTab.youtube.id)
+                    tile(WebTab.instagram.title, "FEED", WebTab.instagram.id)
                     ForEach(tiles.custom) { p in
                         tile(p.title, URL(string: p.url)?.host ?? "", p.id)
                             .contextMenu { Button("Remove tile") { tiles.remove(p) } }
