@@ -53,6 +53,9 @@ struct LoginView: View {
                 Text("CONNECT SPOTIFY").font(Theme.mono(16, .bold)).foregroundColor(.black)
                     .padding(.horizontal, 32).padding(.vertical, 16).background(Capsule().fill(Color.white))
             }
+            if let e = auth.error {
+                Text(e).font(Theme.mono(12)).foregroundColor(Theme.red).multilineTextAlignment(.center).padding(.horizontal, 40)
+            }
             if Config.clientID.hasPrefix("PASTE") {
                 Text("Set your Client ID in Config.swift first.").font(Theme.mono(12)).foregroundColor(Theme.red)
             }

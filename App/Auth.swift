@@ -18,6 +18,7 @@ final class Anchor: NSObject, ASWebAuthenticationPresentationContextProviding {
 /// Spotify login with PKCE (no client secret on device). Tokens live in UserDefaults.
 @MainActor
 final class Auth: ObservableObject {
+    @Published var error: String?   // shown on the login screen so failures are visible
     @Published var loggedIn = UserDefaults.standard.string(forKey: "rt") != nil
     private let d = UserDefaults.standard
     private var session: ASWebAuthenticationSession?
@@ -37,13 +38,20 @@ final class Auth: ObservableObject {
             .init(name: "code_challenge_method", value: "S256"),
             .init(name: "code_challenge", value: challenge),
         ]
-        let s = ASWebAuthenticationSession(url: c.url!, callbackURLScheme: Config.scheme) { [weak self] url, _ in
-            guard let url,
-                  let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                    .queryItems?.first(where: { $0.name == "code" })?.value else { return }
+        let s = ASWebAuthenticationSession(url: c.url!, callbackURLScheme: Config.scheme) { [weak self] url, err in
+            if let err { Task { @MainActor in self?.error = "Login window: \(err.localizedDescription)" }; return }
+            guard let url else { return }
+            if let e = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "error" })?.value {
+                Task { @MainActor in self?.error = "Spotify returned: \(e)" }; return
+            }
+            guard let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "code" })?.value else {
+                Task { @MainActor in self?.error = "Spotify sent no login code" }; return
+            }
             Task { @MainActor in
-                try? await self?.tokenRequest(["grant_type": "authorization_code", "code": code,
-                    "redirect_uri": Config.redirect, "client_id": Config.clientID, "code_verifier": verifier])
+                do { try await self?.tokenRequest(["grant_type": "authorization_code", "code": code,
+                    "redirect_uri": Config.redirect, "client_id": Config.clientID, "code_verifier": verifier]) }
+                catch { self?.error = "Token step: \(error)" }
             }
         }
         s.presentationContextProvider = anchor
@@ -71,7 +79,10 @@ final class Auth: ObservableObject {
             .joined(separator: "&").data(using: .utf8)
         let (data, _) = try await URLSession.shared.data(for: req)
         struct R: Decodable { let access_token: String; let refresh_token: String?; let expires_in: Double }
-        let r = try JSONDecoder().decode(R.self, from: data)
+        guard let r = try? JSONDecoder().decode(R.self, from: data) else {
+            throw NSError(domain: "Spotify", code: 0, userInfo: [NSLocalizedDescriptionKey: String(data: data, encoding: .utf8) ?? "bad response"])
+        }
+        error = nil
         d.set(r.access_token, forKey: "at")
         d.set(Date().timeIntervalSince1970 + r.expires_in, forKey: "exp")
         if let rt = r.refresh_token { d.set(rt, forKey: "rt") }
