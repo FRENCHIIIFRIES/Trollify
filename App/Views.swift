@@ -23,14 +23,15 @@ struct RootView: View {
     var body: some View {
         ZStack {
             Theme.bg.ignoresSafeArea()
-            if auth.loggedIn { MainView(auth: auth) } else { LoginView(auth: auth) }
+            Shell(auth: auth)
         }
         .overlay(alignment: .top) {
             if updater.available != nil {
                 Button { updater.install() } label: {
-                    Text("UPDATE AVAILABLE - TAP TO INSTALL").font(Theme.mono(12, .bold)).foregroundColor(.black)
+                    DotText(text: "UPDATE AVAILABLE - TAP TO INSTALL", dot: 2.6, color: .black)
                         .padding(.horizontal, 18).padding(.vertical, 10).background(Capsule().fill(Color.white))
-                }.padding(.top, 8)
+                }
+                .padding(.top, 8)
             }
         }
         .task {
@@ -46,10 +47,10 @@ struct LoginView: View {
     @ObservedObject var auth: Auth
     @State private var scanning = false
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 26) {
             HStack(spacing: 6) { ForEach(0..<5) { i in Circle().fill(i == 0 ? Theme.red : .white).frame(width: 12, height: 12) } }
-            Text("TROLLIFY").font(Theme.mono(44, .bold)).tracking(8)
-            Text("A fast Spotify controller. Premium required.").font(Theme.mono(14)).foregroundColor(Theme.dim)
+            DotText(text: "TROLLIFY", dot: 8)
+            Text("Connect Spotify (Premium) to browse and control music.").font(Theme.mono(14)).foregroundColor(Theme.dim)
             Button { auth.login() } label: {
                 Text("CONNECT SPOTIFY").font(Theme.mono(16, .bold)).foregroundColor(.black)
                     .padding(.horizontal, 32).padding(.vertical, 16).background(Capsule().fill(Color.white))
@@ -67,42 +68,42 @@ struct LoginView: View {
                 Text("Set your Client ID in Config.swift first.").font(Theme.mono(12)).foregroundColor(Theme.red)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $scanning) {
             QRScanner { code in scanning = false; Task { await auth.pair(code) } }.ignoresSafeArea()
         }
     }
 }
 
-struct MainView: View {
+/// Spotify library: playlists on the left, tracks on the right.
+struct MusicView: View {
     @ObservedObject var auth: Auth
-    @StateObject private var player: Player
+    @ObservedObject var player: Player
     @State private var query = ""
 
-    init(auth: Auth) {
-        self.auth = auth
-        _player = StateObject(wrappedValue: Player(api: API(auth)))
-    }
-
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar.frame(width: 290).background(Theme.surface.opacity(0.5))
-            VStack(spacing: 0) {
-                if let m = player.message {
-                    Text(m).font(Theme.mono(12)).foregroundColor(.white).frame(maxWidth: .infinity)
-                        .padding(10).background(Theme.red)
-                }
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        Text(player.title).font(Theme.mono(28, .bold)).tracking(3).padding(24)
-                        ForEach(Array(player.tracks.enumerated()), id: \.offset) { i, t in
-                            Button { Task { await player.play(t) } } label: { row(i, t) }
+        if !auth.loggedIn {
+            LoginView(auth: auth)
+        } else {
+            HStack(spacing: 0) {
+                sidebar.frame(width: 250).background(Theme.surface.opacity(0.5))
+                VStack(spacing: 0) {
+                    if let m = player.message {
+                        Text(m).font(Theme.mono(12)).foregroundColor(.white).frame(maxWidth: .infinity)
+                            .padding(10).background(Theme.red)
+                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            DotText(text: String(player.title.dotSafe.prefix(28)), dot: 4).padding(24)
+                            ForEach(Array(player.tracks.enumerated()), id: \.offset) { i, t in
+                                Button { Task { await player.play(t) } } label: { row(i, t) }
+                            }
                         }
-                    }.padding(.bottom, 24)
+                        .padding(.bottom, 24)
+                    }
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) { NowPlaying(player: player) }
-        .task { await player.start() }
     }
 
     private var sidebar: some View {
@@ -118,7 +119,8 @@ struct MainView: View {
                 }
             }
             Button("Log out") { auth.logout() }.font(Theme.mono(12)).foregroundColor(Theme.dim)
-        }.padding(16)
+        }
+        .padding(16)
     }
 
     private func sideButton(_ text: String, _ action: @escaping () async -> Void) -> some View {
@@ -138,55 +140,8 @@ struct MainView: View {
                 Text(t.artistLine).font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)
             }
             Spacer()
-        }.padding(.horizontal, 24).padding(.vertical, 8)
-    }
-}
-
-struct NowPlaying: View {
-    @ObservedObject var player: Player
-    var body: some View {
-        let s = player.state
-        let item = s?.item
-        VStack(spacing: 10) {
-            GeometryReader { g in
-                let frac = CGFloat(s?.progress_ms ?? 0) / CGFloat(max(item?.duration_ms ?? 1, 1))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.15))
-                    Capsule().fill(Theme.red).frame(width: g.size.width * min(max(frac, 0), 1))
-                }
-            }.frame(height: 3)
-            HStack(spacing: 16) {
-                Art(url: item?.art, size: 56)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item?.name ?? "Nothing playing").font(Theme.mono(15, .bold)).lineLimit(1)
-                    Text(item?.artistLine ?? "Pick a song or device").font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)
-                }
-                Spacer()
-                ctl("backward.fill") { await player.previous() }
-                Button { Task { await player.toggle() } } label: {
-                    Image(systemName: s?.is_playing == true ? "pause.fill" : "play.fill")
-                        .font(.system(size: 22)).foregroundColor(.black).frame(width: 52, height: 52)
-                        .background(Circle().fill(Color.white))
-                }
-                ctl("forward.fill") { await player.next() }
-                Menu {
-                    if player.devices.isEmpty { Button("No devices - open Spotify on your PC and press play") {}.disabled(true) }
-                    ForEach(player.devices, id: \.ident) { d in
-                        Button((d.is_active ? "• " : "") + d.name) { Task { await player.transfer(d) } }
-                    }
-                } label: {
-                    Image(systemName: "hifispeaker.fill").font(.system(size: 20)).foregroundColor(Theme.red).frame(width: 44, height: 44)
-                }
-            }
         }
-        .padding(.horizontal, 24).padding(.vertical, 12)
-        .background(Theme.surface.ignoresSafeArea(edges: .bottom))
-    }
-
-    private func ctl(_ icon: String, _ action: @escaping () async -> Void) -> some View {
-        Button { Task { await action() } } label: {
-            Image(systemName: icon).font(.system(size: 20)).foregroundColor(.white).frame(width: 44, height: 44)
-        }
+        .padding(.horizontal, 24).padding(.vertical, 8)
     }
 }
 

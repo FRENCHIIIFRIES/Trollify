@@ -11,16 +11,27 @@ final class Player: ObservableObject {
     @Published var tracks: [Track] = []
     @Published var title = "LIBRARY"
     @Published var message: String?
+    private var anchorMS = 0
+    private var anchorDate = Date()
     private var context: String?   // playlist uri of the list being shown
 
     init(api: API) { self.api = api }
 
     func start() async {
-        await loadPlaylists()
         while !Task.isCancelled {
-            await refresh()
+            if api.auth.loggedIn {
+                if playlists.isEmpty { await loadPlaylists() }
+                await refresh()
+            }
             try? await Task.sleep(nanoseconds: 3_000_000_000)
         }
+    }
+
+    /// Playback position, advanced locally between the 3-second polls so lyrics stay in sync.
+    func nowMS(_ d: Date = Date()) -> Int {
+        guard let s = state else { return 0 }
+        let ms = anchorMS + (s.is_playing ? Int(d.timeIntervalSince(anchorDate) * 1000) : 0)
+        return min(ms, s.item?.duration_ms ?? ms)
     }
 
     func refresh() async {
@@ -29,6 +40,8 @@ final class Player: ObservableObject {
             if d.isEmpty { state = nil } else { state = try JSONDecoder().decode(PlayerState.self, from: d) }
             let dv: Devices = try await api.get("/me/player/devices")
             devices = dv.devices
+            anchorMS = state?.progress_ms ?? 0
+            anchorDate = Date()
             if message?.hasPrefix("Network") == true || message?.hasPrefix("Spotify says") == true { message = nil }
         } catch let e as APIError {
             message = e.status == 403 ? "Spotify says Premium is required, or your account isn't added to the dev app." : "Spotify error \(e.status)"
