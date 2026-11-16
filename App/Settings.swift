@@ -5,7 +5,7 @@ struct SettingsView: View {
     @ObservedObject var auth: Auth
     @ObservedObject var updater: Updater
     @ObservedObject var tiles: TileStore
-    @AppStorage("opt.scanlines") private var scanlines = true
+    @AppStorage("opt.scanlines") private var scanlines = false
     @AppStorage("opt.halftone") private var halftone = true
     @AppStorage("opt.vu") private var vu = true
     @AppStorage("opt.lyrics") private var lyrics = true
@@ -18,7 +18,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                DotText(text: "SETTINGS", dot: 6)
+                Text("Settings").font(.system(size: 38, weight: .bold, design: .rounded))
 
                 group("LOOK") {
                     toggle("Scanlines", "Retro CRT lines over the player", $scanlines)
@@ -68,10 +68,10 @@ struct SettingsView: View {
 
     private func group<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            DotText(text: title, dot: 3, color: Theme.red)
+            Text(title).font(Theme.mono(12, .bold)).tracking(1.6).foregroundColor(Theme.red)
             VStack(alignment: .leading, spacing: 16) { content() }
                 .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.card))
         }
     }
 

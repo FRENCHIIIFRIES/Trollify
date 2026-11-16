@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App frame: side rail of dot-matrix tabs, content, optional PC mirror panel, mini player.
+/// App frame: icon dock on the left, content, optional PC mirror panel, floating mini player.
 struct Shell: View {
     @ObservedObject var auth: Auth
     @ObservedObject var updater: Updater
@@ -24,25 +24,25 @@ struct Shell: View {
     var body: some View {
         GeometryReader { g in
             HStack(spacing: 0) {
-                rail
-                Rectangle().fill(Color.white.opacity(0.1)).frame(width: 1)
+                dock
                 if !(pcSide && pcWide) {
                     content.id(current).transition(.opacity)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 if pcSide {
-                    Rectangle().fill(Color.white.opacity(0.1)).frame(width: 1)
                     WebPane(store: web, page: .pc, trailing: AnyView(
                         Button { withAnimation { pcWide.toggle() } } label: {
                             Image(systemName: pcWide ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
                                 .font(.system(size: 16)).foregroundColor(.white).frame(width: 34, height: 30)
                         }))
-                        .frame(width: pcWide ? g.size.width - 85 : g.size.width * pcWidth)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .padding(.vertical, 10).padding(.trailing, 10)
+                        .frame(width: pcWide ? g.size.width - 100 : g.size.width * pcWidth)
                 }
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if current != "now" { MiniPlayer(player: player) { current = "now" } }
+            if current != "now" { MiniPlayer(player: player) { withAnimation(.easeOut(duration: 0.2)) { current = "now" } } }
         }
         .task { await player.start() }
     }
@@ -59,35 +59,50 @@ struct Shell: View {
         }
     }
 
-    private var rail: some View {
+    // MARK: dock
+
+    private var dock: some View {
         VStack(spacing: 6) {
-            DotText(text: "TRL", dot: 3, color: Theme.red).padding(.vertical, 18)
-            railButton("home", "HOM")
-            railButton("music", "MUS")
-            railButton("now", "NOW")
-            ForEach(pages) { p in railButton(p.id, p.code) }
-            Spacer()
-            railButton("settings", "SET")
-            Button { withAnimation { pcSide.toggle(); if !pcSide { pcWide = false } } } label: {
-                DotText(text: "PC", dot: 3, color: pcSide ? .white : Theme.dim)
-                    .frame(width: 70, height: 48)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(pcSide ? Theme.red : Color.clear))
+            HStack(spacing: 3) {
+                Circle().fill(Theme.red).frame(width: 6, height: 6)
+                Circle().fill(Color.white).frame(width: 6, height: 6)
+                Circle().fill(Color.white.opacity(0.5)).frame(width: 6, height: 6)
             }
-            .padding(.bottom, 14)
+            .padding(.top, 22).padding(.bottom, 14)
+            item("home", "house.fill", "Home")
+            item("music", "music.note.list", "Music")
+            item("now", "waveform", "Player")
+            ForEach(pages) { p in item(p.id, symbol(p), label(p)) }
+            Spacer()
+            item("settings", "gearshape.fill", "Settings")
+            Button { withAnimation { pcSide.toggle(); if !pcSide { pcWide = false } } } label: {
+                dockLabel("desktopcomputer", "PC", pcSide)
+            }
+            .padding(.bottom, 12)
         }
-        .frame(width: 84)
-        .background(Theme.surface.opacity(0.6))
+        .frame(width: 92)
+        .background(Color.white.opacity(0.04))
     }
 
-    private func railButton(_ id: String, _ code: String) -> some View {
-        Button { withAnimation(.easeOut(duration: 0.2)) { current = id } } label: {
-            DotText(text: String(code.prefix(3)), dot: 3, color: current == id ? .white : Theme.dim)
-                .frame(width: 70, height: 48)
-                .background(RoundedRectangle(cornerRadius: 10).fill(current == id ? Theme.red : Color.clear))
+    private func symbol(_ p: WebTab) -> String { p.id == "yt" ? "play.rectangle.fill" : p.id == "ig" ? "camera.fill" : "globe" }
+    private func label(_ p: WebTab) -> String { p.id == "yt" ? "YouTube" : p.id == "ig" ? "Instagram" : p.title.capitalized }
+
+    private func item(_ id: String, _ icon: String, _ text: String) -> some View {
+        Button { withAnimation(.easeOut(duration: 0.2)) { current = id } } label: { dockLabel(icon, text, current == id) }
+    }
+
+    private func dockLabel(_ icon: String, _ text: String, _ selected: Bool) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 21, weight: .semibold))
+            Text(text).font(.system(size: 10, weight: .semibold, design: .rounded)).lineLimit(1)
         }
+        .foregroundColor(selected ? Theme.red : Theme.dim)
+        .frame(width: 76, height: 58)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(selected ? Theme.red.opacity(0.16) : Color.clear))
     }
 }
 
+/// Floating glass mini player.
 struct MiniPlayer: View {
     @ObservedObject var player: Player
     var open: () -> Void
@@ -95,18 +110,20 @@ struct MiniPlayer: View {
     var body: some View {
         if let t = player.state?.item {
             HStack(spacing: 14) {
-                Art(url: t.art(min: 100), size: 44)
-                VStack(alignment: .leading, spacing: 6) {
-                    DotMarquee(text: t.name, cols: 24, dot: 2.8)
-                    DotText(text: String(t.artistLine.dotSafe.prefix(36)), dot: 2, color: Theme.dim)
+                Art(url: t.art(min: 100), size: 48, radius: 10)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(t.name).font(Theme.mono(15, .semibold)).lineLimit(1)
+                    Text(t.artistLine).font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)
                 }
                 Spacer()
                 Button { Task { await player.previous() } } label: { icon("backward.fill") }
                 Button { Task { await player.toggle() } } label: { icon(player.state?.is_playing == true ? "pause.fill" : "play.fill") }
                 Button { Task { await player.next() } } label: { icon("forward.fill") }
             }
-            .padding(.horizontal, 18).padding(.vertical, 8)
-            .background(Theme.surface.ignoresSafeArea(edges: .bottom))
+            .padding(10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(.horizontal, 16).padding(.bottom, 8)
+            .contentShape(Rectangle())
             .onTapGesture(perform: open)
         }
     }

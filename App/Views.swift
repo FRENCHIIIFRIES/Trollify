@@ -2,10 +2,11 @@ import SwiftUI
 
 enum Theme {
     static let bg = Color(red: 0.03, green: 0.03, blue: 0.035)
-    static let surface = Color(red: 0.09, green: 0.09, blue: 0.10)
-    static let red = Color(red: 0.84, green: 0.10, blue: 0.12)
+    static let surface = Color(red: 0.11, green: 0.11, blue: 0.14)
+    static let card = Color.white.opacity(0.07)
+    static let red = Color(red: 1.0, green: 0.27, blue: 0.25)
     static let dim = Color.white.opacity(0.55)
-    static func mono(_ size: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: size, weight: w, design: .monospaced) }
+    static func mono(_ size: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: size, weight: w, design: .rounded) }   // name kept from the old look; it is the rounded UI font now
 }
 
 enum ImageCache { static let shared: NSCache<NSString, UIImage> = { let c = NSCache<NSString, UIImage>(); c.countLimit = 120; return c }() }
@@ -14,13 +15,14 @@ enum ImageCache { static let shared: NSCache<NSString, UIImage> = { let c = NSCa
 struct Art: View {
     let url: String?
     var size: CGFloat
+    var radius: CGFloat = 10
     @State private var img: UIImage?
     var body: some View {
         ZStack {
             Theme.surface
             if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
         }
-        .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .task(id: url) { await load() }
     }
     private func load() async {
@@ -48,7 +50,8 @@ struct RootView: View {
     @AppStorage("opt.autoupdate") private var autoUpdate = true
     var body: some View {
         ZStack {
-            Theme.bg.ignoresSafeArea()
+            LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.09), Color(red: 0.10, green: 0.06, blue: 0.13), .black],
+                           startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
             Shell(auth: auth, updater: updater)
         }
         .buttonStyle(PressStyle())
@@ -102,7 +105,7 @@ struct LoginView: View {
     }
 }
 
-/// Spotify library: playlists on the left, tracks on the right.
+/// Spotify library: a shelf of playlist covers, then the track list.
 struct MusicView: View {
     @ObservedObject var auth: Auth
     @ObservedObject var player: Player
@@ -112,63 +115,85 @@ struct MusicView: View {
         if !auth.loggedIn {
             LoginView(auth: auth)
         } else {
-            HStack(spacing: 0) {
-                sidebar.frame(width: 250).background(Theme.surface.opacity(0.5))
-                VStack(spacing: 0) {
-                    if let m = player.message {
-                        Text(m).font(Theme.mono(12)).foregroundColor(.white).frame(maxWidth: .infinity)
-                            .padding(10).background(Theme.red)
-                    }
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            DotText(text: String(player.title.dotSafe.prefix(28)), dot: 4).padding(24)
-                            ForEach(Array(player.tracks.enumerated()), id: \.offset) { i, t in
-                                Button { Task { await player.play(t) } } label: { row(i, t) }
-                            }
+            VStack(spacing: 0) {
+                if let m = player.message {
+                    Text(m).font(Theme.mono(12, .semibold)).foregroundColor(.white).frame(maxWidth: .infinity)
+                        .padding(10).background(Theme.red)
+                }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        header
+                        shelf
+                        Text(player.title).font(Theme.mono(22, .bold)).padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 8)
+                        ForEach(Array(player.tracks.enumerated()), id: \.offset) { i, t in
+                            Button { Task { await player.play(t) } } label: { row(i, t) }
                         }
-                        .padding(.bottom, 24)
+                    }
+                    .padding(.bottom, 24)
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 16) {
+            Text("Music").font(.system(size: 38, weight: .bold, design: .rounded))
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundColor(Theme.dim)
+                TextField("Search songs", text: $query).font(Theme.mono(15))
+                    .onSubmit { Task { await player.search(query) } }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 11).frame(width: 300)
+            .background(Capsule().fill(Theme.card))
+        }
+        .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 18)
+    }
+
+    private var shelf: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 16) {
+                shelfCard("Liked Songs", art: nil) { await player.open(nil) }
+                ForEach(player.playlists) { p in
+                    shelfCard(p.name, art: p.art(min: 200)) { await player.open(p) }
+                }
+            }
+            .padding(.horizontal, 28)
+        }
+    }
+
+    private func shelfCard(_ name: String, art: String?, _ open: @escaping () async -> Void) -> some View {
+        Button { Task { await open() } } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack {
+                    if art == nil {
+                        LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        Image(systemName: "heart.fill").font(.system(size: 36)).foregroundColor(.white)
+                    } else {
+                        Art(url: art, size: 136, radius: 18)
                     }
                 }
+                .frame(width: 136, height: 136).clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                Text(name).font(Theme.mono(13, .semibold)).foregroundColor(.white).lineLimit(2)
+                    .multilineTextAlignment(.leading).frame(width: 136, alignment: .leading)
             }
-        }
-    }
-
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            TextField("Search songs", text: $query)
-                .font(Theme.mono(15)).padding(12).background(Theme.surface).cornerRadius(12)
-                .onSubmit { Task { await player.search(query) } }
-            sideButton("LIKED SONGS") { await player.open(nil) }
-            Text("PLAYLISTS").font(Theme.mono(11)).foregroundColor(Theme.dim).padding(.top, 8)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(player.playlists) { p in sideButton(p.name) { await player.open(p) } }
-                }
-            }
-            Button("Log out") { auth.logout() }.font(Theme.mono(12)).foregroundColor(Theme.dim)
-        }
-        .padding(16)
-    }
-
-    private func sideButton(_ text: String, _ action: @escaping () async -> Void) -> some View {
-        Button { Task { await action() } } label: {
-            Text(text).font(Theme.mono(14)).foregroundColor(.white).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
         }
     }
 
     private func row(_ i: Int, _ t: Track) -> some View {
         let playing = player.state?.item?.uri == t.uri
         return HStack(spacing: 14) {
-            Text(String(format: "%02d", i + 1)).font(Theme.mono(13)).foregroundColor(playing ? Theme.red : Theme.dim).frame(width: 28)
-            Art(url: t.art(min: 100), size: 44)
+            Art(url: t.art(min: 100), size: 52, radius: 10)
             VStack(alignment: .leading, spacing: 3) {
-                Text(t.name).font(Theme.mono(15, .bold)).foregroundColor(playing ? Theme.red : .white).lineLimit(1)
-                Text(t.artistLine).font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)
+                Text(t.name).font(Theme.mono(16, .semibold)).foregroundColor(playing ? Theme.red : .white).lineLimit(1)
+                Text(t.artistLine).font(Theme.mono(13)).foregroundColor(Theme.dim).lineLimit(1)
             }
             Spacer()
+            if playing { Image(systemName: "waveform").foregroundColor(Theme.red) }
         }
-        .padding(.horizontal, 24).padding(.vertical, 8)
+        .padding(.horizontal, 14).padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(playing ? Theme.red.opacity(0.12) : Color.clear))
+        .padding(.horizontal, 14)
     }
 }
 

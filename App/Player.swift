@@ -9,7 +9,7 @@ final class Player: ObservableObject {
     @Published var devices: [Device] = []
     @Published var playlists: [Playlist] = []
     @Published var tracks: [Track] = []
-    @Published var title = "LIBRARY"
+    @Published var title = "Your library"
     @Published var message: String?
     private var anchorMS = 0
     private var anchorDate = Date()
@@ -54,7 +54,7 @@ final class Player: ObservableObject {
     }
 
     func open(_ p: Playlist?) async {
-        title = (p?.name ?? "Liked Songs").uppercased()
+        title = p?.name ?? "Liked Songs"
         context = p?.uri
         let path = p.map { "/playlists/\($0.id)/tracks" } ?? "/me/tracks"
         if let page: Page<TrackItem> = try? await api.get(path, ["limit": "100"]) {
@@ -64,7 +64,7 @@ final class Player: ObservableObject {
 
     func search(_ q: String) async {
         guard !q.isEmpty else { return }
-        title = "SEARCH: \(q.uppercased())"
+        title = "Results for \"\(q)\""
         context = nil
         if let r: SearchResult = try? await api.get("/search", ["q": q, "type": "track", "limit": "30"]) {
             tracks = r.tracks.items

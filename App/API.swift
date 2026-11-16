@@ -17,7 +17,13 @@ struct Track: Decodable, Equatable {
         return (imgs.first { ($0.width ?? 640) >= px } ?? imgs.last)?.url
     }
 }
-struct Playlist: Decodable, Identifiable { let id: String; let name: String; let uri: String; let images: [Img]? }
+struct Playlist: Decodable, Identifiable {
+    let id: String; let name: String; let uri: String; let images: [Img]?
+    func art(min px: Int) -> String? {
+        let imgs = (images ?? []).sorted { ($0.width ?? 0) < ($1.width ?? 0) }
+        return (imgs.first { ($0.width ?? 640) >= px } ?? imgs.last)?.url
+    }
+}
 struct Page<T: Decodable>: Decodable { let items: [T] }
 struct TrackItem: Decodable { let track: Track? }
 struct Device: Decodable, Equatable { let id: String?; let name: String; let type: String; let is_active: Bool; var ident: String { id ?? name } }

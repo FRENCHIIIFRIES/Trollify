@@ -6,7 +6,7 @@ struct NowScreen: View {
     @ObservedObject var lyrics: Lyrics
     @StateObject private var art = ArtModel()
     @State private var fullArt = false
-    @AppStorage("opt.scanlines") private var scanlines = true
+    @AppStorage("opt.scanlines") private var scanlines = false
     @AppStorage("opt.halftone") private var halftone = true
     @AppStorage("opt.vu") private var vu = true
     @AppStorage("opt.lyrics") private var showLyrics = true
@@ -89,10 +89,12 @@ struct NowScreen: View {
         let cols = 26
         let dot = max(2.5, min(8, width / CGFloat(cols * 6)))
         return VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                DotMarquee(text: t.name, cols: cols, dot: dot * 0.9)
-                DotMarquee(text: t.artistLine, cols: cols, dot: dot * 0.55, color: .white.opacity(0.6))
+            VStack(spacing: 6) {
+                Text(t.name).font(.system(size: 30, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6)
+                Text(t.artistLine).font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.65)).lineLimit(1)
             }
+            .multilineTextAlignment(.center)
             if showLyrics { lyricsView(dot: dot, cols: cols) }
             progress(t, width: width)
             controls
