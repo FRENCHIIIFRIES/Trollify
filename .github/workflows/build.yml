@@ -1,5 +1,7 @@
 name: build-ipa
 on: [push, workflow_dispatch]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: macos-latest
@@ -13,9 +15,14 @@ jobs:
           mkdir -p "$APP"
           xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -sdk "$SDK" -parse-as-library -O App/*.swift -o "$APP/Trollify"
           cp App/Info.plist "$APP/"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$APP/Info.plist"
           ldid -Sentitlements.plist "$APP/Trollify"
           (cd build && zip -qr Trollify.ipa Payload)
       - uses: actions/upload-artifact@v4
         with:
           name: Trollify-ipa
           path: build/Trollify.ipa
+      - name: Publish release for in-app updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "build-${{ github.run_number }}" build/Trollify.ipa --latest --title "Build ${{ github.run_number }}" --notes "Auto-built from ${{ github.sha }}"

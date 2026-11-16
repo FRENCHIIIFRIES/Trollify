@@ -19,10 +19,25 @@ struct Art: View {
 
 struct RootView: View {
     @StateObject var auth = Auth()
+    @StateObject var updater = Updater()
     var body: some View {
         ZStack {
             Theme.bg.ignoresSafeArea()
             if auth.loggedIn { MainView(auth: auth) } else { LoginView(auth: auth) }
+        }
+        .overlay(alignment: .top) {
+            if updater.available != nil {
+                Button { updater.install() } label: {
+                    Text("UPDATE AVAILABLE - TAP TO INSTALL").font(Theme.mono(12, .bold)).foregroundColor(.black)
+                        .padding(.horizontal, 18).padding(.vertical, 10).background(Capsule().fill(Color.white))
+                }.padding(.top, 8)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                await updater.check()
+                try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            }
         }
     }
 }
