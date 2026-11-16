@@ -1,0 +1,21 @@
+name: build-ipa
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install ldid
+      - name: Build unsigned IPA
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          APP=build/Payload/Trollify.app
+          mkdir -p "$APP"
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -sdk "$SDK" -parse-as-library -O App/*.swift -o "$APP/Trollify"
+          cp App/Info.plist "$APP/"
+          ldid -Sentitlements.plist "$APP/Trollify"
+          (cd build && zip -qr Trollify.ipa Payload)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Trollify-ipa
+          path: build/Trollify.ipa
