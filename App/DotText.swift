@@ -50,6 +50,7 @@ struct DotText: View {
 
 /// Dot text that scrolls like a ticker when it is longer than `cols`.
 struct DotMarquee: View {
+    @AppStorage("opt.reduceMotion") private var reduceMotion = false
     let text: String
     var cols: Int = 20
     var dot: CGFloat = 5
@@ -57,8 +58,8 @@ struct DotMarquee: View {
 
     var body: some View {
         let s = text.dotSafe
-        if s.count <= cols {
-            DotText(text: s, dot: dot, color: color)
+        if s.count <= cols || reduceMotion {
+            DotText(text: String(s.prefix(cols)), dot: dot, color: color)
         } else {
             TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
                 let padded = Array(s + "   ")
@@ -90,10 +91,11 @@ struct DotBar: View {
 
 /// Decorative LED level meter (animated while playing; it does not read the real audio).
 struct VU: View {
+    @AppStorage("opt.reduceMotion") private var reduceMotion = false
     let color: Color
     let active: Bool
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.09)) { ctx in
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1 : 0.09, paused: reduceMotion)) { ctx in
             Canvas { g, size in
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 let cols = 14, rows = 6
@@ -126,5 +128,6 @@ struct Scanlines: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+        .drawingGroup()
     }
 }

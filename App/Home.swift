@@ -50,7 +50,7 @@ struct HomeView: View {
     private var nowCard: some View {
         Button { go("now") } label: {
             HStack(spacing: 14) {
-                Art(url: player.state?.item?.art, size: 84)
+                Art(url: player.state?.item?.art(min: 180), size: 84)
                 VStack(alignment: .leading, spacing: 10) {
                     if let t = player.state?.item {
                         DotMarquee(text: t.name, cols: 16, dot: 3.4)

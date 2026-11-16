@@ -37,9 +37,10 @@ final class Player: ObservableObject {
     func refresh() async {
         do {
             let d = try await api.call("GET", "/me/player")
-            if d.isEmpty { state = nil } else { state = try JSONDecoder().decode(PlayerState.self, from: d) }
+            let new: PlayerState? = d.isEmpty ? nil : try JSONDecoder().decode(PlayerState.self, from: d)
+            if new != state { state = new }
             let dv: Devices = try await api.get("/me/player/devices")
-            devices = dv.devices
+            if dv.devices != devices { devices = dv.devices }
             anchorMS = state?.progress_ms ?? 0
             anchorDate = Date()
             if message?.hasPrefix("Network") == true || message?.hasPrefix("Spotify says") == true { message = nil }

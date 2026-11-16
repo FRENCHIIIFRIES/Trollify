@@ -8,23 +8,50 @@ enum Theme {
     static func mono(_ size: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: size, weight: w, design: .monospaced) }
 }
 
+enum ImageCache { static let shared: NSCache<NSString, UIImage> = { let c = NSCache<NSString, UIImage>(); c.countLimit = 120; return c }() }
+
+/// Cover art with an in-memory cache and a short fade-in (AsyncImage re-downloads while scrolling).
 struct Art: View {
     let url: String?
     var size: CGFloat
+    @State private var img: UIImage?
     var body: some View {
-        AsyncImage(url: url.flatMap(URL.init)) { img in img.resizable().scaledToFill() } placeholder: { Theme.surface }
-            .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: 10))
+        ZStack {
+            Theme.surface
+            if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+        }
+        .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: 10))
+        .task(id: url) { await load() }
+    }
+    private func load() async {
+        guard let s = url else { img = nil; return }
+        if let c = ImageCache.shared.object(forKey: s as NSString) { img = c; return }
+        guard let u = URL(string: s), let (d, _) = try? await URLSession.shared.data(from: u), let i = UIImage(data: d) else { return }
+        ImageCache.shared.setObject(i, forKey: s as NSString)
+        withAnimation(.easeIn(duration: 0.2)) { img = i }
+    }
+}
+
+/// Gentle press feedback on every button.
+struct PressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
 struct RootView: View {
     @StateObject var auth = Auth()
     @StateObject var updater = Updater()
+    @AppStorage("opt.autoupdate") private var autoUpdate = true
     var body: some View {
         ZStack {
             Theme.bg.ignoresSafeArea()
-            Shell(auth: auth)
+            Shell(auth: auth, updater: updater)
         }
+        .buttonStyle(PressStyle())
         .overlay(alignment: .top) {
             if updater.available != nil {
                 Button { updater.install() } label: {
@@ -36,7 +63,7 @@ struct RootView: View {
         }
         .task {
             while !Task.isCancelled {
-                await updater.check()
+                if autoUpdate { await updater.check() }
                 try? await Task.sleep(nanoseconds: 3_600_000_000_000)
             }
         }
@@ -134,7 +161,7 @@ struct MusicView: View {
         let playing = player.state?.item?.uri == t.uri
         return HStack(spacing: 14) {
             Text(String(format: "%02d", i + 1)).font(Theme.mono(13)).foregroundColor(playing ? Theme.red : Theme.dim).frame(width: 28)
-            Art(url: t.art, size: 44)
+            Art(url: t.art(min: 100), size: 44)
             VStack(alignment: .leading, spacing: 3) {
                 Text(t.name).font(Theme.mono(15, .bold)).foregroundColor(playing ? Theme.red : .white).lineLimit(1)
                 Text(t.artistLine).font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)

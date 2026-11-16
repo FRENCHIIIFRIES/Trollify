@@ -6,6 +6,7 @@ import UIKit
 final class Updater: ObservableObject {
     static let repo = "FRENCHIIIFRIES/Trollify"
     @Published var available: URL?
+    @Published var message = ""
 
     private struct Release: Decodable {
         struct Asset: Decodable { let name: String; let browser_download_url: String }
@@ -14,14 +15,19 @@ final class Updater: ObservableObject {
     }
 
     func check() async {
+        message = "CHECKING..."
         guard let url = URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest"),
               let (data, _) = try? await URLSession.shared.data(from: url),
               let r = try? JSONDecoder().decode(Release.self, from: data),
               let latest = Int(r.tag_name.replacingOccurrences(of: "build-", with: "")),
               let current = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""),
               latest > current,
-              let a = r.assets.first(where: { $0.name.hasSuffix(".ipa") }) else { return }
+              let a = r.assets.first(where: { $0.name.hasSuffix(".ipa") }) else {
+            message = "UP TO DATE"
+            return
+        }
         available = URL(string: a.browser_download_url)
+        message = "UPDATE FOUND"
     }
 
     func install() {

@@ -83,5 +83,6 @@ struct Halftone: View {
                 }
             }
         }
+        .drawingGroup()   // render once into a texture instead of redrawing 1600 dots
     }
 }

@@ -6,12 +6,16 @@ struct NowScreen: View {
     @ObservedObject var lyrics: Lyrics
     @StateObject private var art = ArtModel()
     @State private var fullArt = false
+    @AppStorage("opt.scanlines") private var scanlines = true
+    @AppStorage("opt.halftone") private var halftone = true
+    @AppStorage("opt.vu") private var vu = true
+    @AppStorage("opt.lyrics") private var showLyrics = true
 
     var body: some View {
         GeometryReader { g in
             ZStack {
                 backdrop(g.size)
-                Scanlines()
+                if scanlines { Scanlines() }
                 if let t = player.state?.item { layout(g.size, t) } else { idle }
                 VStack {
                     HStack {
@@ -45,7 +49,7 @@ struct NowScreen: View {
                 Image(uiImage: img).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
                 Color.black.opacity(0.4)
             }
-            Halftone(dots: art.dots, n: art.n).opacity(fullArt ? 0.5 : 0.38)
+            if halftone { Halftone(dots: art.dots, n: art.n).opacity(fullArt ? 0.5 : 0.38) }
         }
         .ignoresSafeArea()
     }
@@ -77,7 +81,7 @@ struct NowScreen: View {
             }
             .shadow(color: art.accent.opacity(0.6), radius: 30)
             .onTapGesture { withAnimation { fullArt = true } }
-            VU(color: art.accent, active: player.state?.is_playing == true).frame(width: side + 24, height: 40)
+            if vu { VU(color: art.accent, active: player.state?.is_playing == true).frame(width: side + 24, height: 40) }
         }
     }
 
@@ -89,7 +93,7 @@ struct NowScreen: View {
                 DotMarquee(text: t.name, cols: cols, dot: dot * 0.9)
                 DotMarquee(text: t.artistLine, cols: cols, dot: dot * 0.55, color: .white.opacity(0.6))
             }
-            lyricsView(dot: dot, cols: cols)
+            if showLyrics { lyricsView(dot: dot, cols: cols) }
             progress(t, width: width)
             controls
         }
