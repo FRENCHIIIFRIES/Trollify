@@ -13,6 +13,7 @@ final class Lyrics: ObservableObject {
 
     func load(_ t: Track) async {
         guard loaded != t.uri else { return }
+        if Demo.on { loaded = t.uri; lines = Self.parse(Demo.lrc); status = ""; return }
         loaded = t.uri; lines = []; status = "SEARCHING LYRICS"
         var c = URLComponents(string: "https://lrclib.net/api/get")!
         c.queryItems = [

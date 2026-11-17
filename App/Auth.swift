@@ -19,7 +19,7 @@ final class Anchor: NSObject, ASWebAuthenticationPresentationContextProviding {
 @MainActor
 final class Auth: ObservableObject {
     @Published var error: String?   // shown on the login screen so failures are visible
-    @Published var loggedIn = UserDefaults.standard.string(forKey: "rt") != nil
+    @Published var loggedIn = Demo.on || UserDefaults.standard.string(forKey: "rt") != nil
     private let d = UserDefaults.standard
     private var session: ASWebAuthenticationSession?
 

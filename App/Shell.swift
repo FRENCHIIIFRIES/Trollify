@@ -9,7 +9,7 @@ struct Shell: View {
     @StateObject private var lyrics = Lyrics()
     @StateObject private var web = WebStore()
     @StateObject private var tiles = TileStore()
-    @State private var current = "home"
+    @State private var current = Demo.screen ?? "home"
     @State private var pcSide = false
     @State private var pcWide = false
 

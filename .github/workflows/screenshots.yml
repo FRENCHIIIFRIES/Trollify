@@ -1,0 +1,50 @@
+name: screenshots
+# Builds the app for the iPad simulator, opens each screen in demo mode and saves screenshots.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["App/**", ".github/workflows/screenshots.yml"]
+jobs:
+  shots:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for simulator
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          APP=build/Sim/Trollify.app
+          mkdir -p "$APP"
+          xcrun -sdk iphonesimulator swiftc -target arm64-apple-ios15.0-simulator -sdk "$SDK" -parse-as-library \
+            $(ls App/*.swift | grep -v Engine.swift) -o "$APP/Trollify"
+          cp App/Info.plist "$APP/"
+          codesign -s - --force "$APP"
+      - name: Boot an iPad simulator
+        run: |
+          RT=$(xcrun simctl list runtimes -j | python3 -c "import json,sys; r=[x for x in json.load(sys.stdin)['runtimes'] if x['platform']=='iOS' and x['isAvailable']]; print(r[-1]['identifier'])")
+          DT=$(xcrun simctl list devicetypes -j | python3 -c "
+          import json,sys
+          t=[d for d in json.load(sys.stdin)['devicetypes'] if 'iPad' in d['name']]
+          pick=[d for d in t if d['name']=='iPad (9th generation)'] or [d for d in t if 'iPad (' in d['name']] or t
+          print(pick[0]['identifier'])")
+          echo "runtime $RT device $DT"
+          UDID=$(xcrun simctl create TrollPad "$DT" "$RT")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Capture screens
+        run: |
+          mkdir -p shots
+          xcrun simctl install "$UDID" build/Sim/Trollify.app
+          for orient in landscape portrait; do
+            for s in home music now settings; do
+              xcrun simctl launch --terminate-running-process "$UDID" com.example.trollify -demo YES -screen "$s" -orient "$orient"
+              sleep 9
+              xcrun simctl io "$UDID" screenshot "shots/$s-$orient.png"
+              if [ "$orient" = landscape ]; then sips -r 270 "shots/$s-$orient.png" >/dev/null; fi
+            done
+          done
+          ls -l shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots

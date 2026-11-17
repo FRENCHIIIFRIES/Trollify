@@ -52,7 +52,7 @@ struct RootView: View {
         ZStack {
             LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.09), Color(red: 0.10, green: 0.06, blue: 0.13), .black],
                            startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
-            Shell(auth: auth, updater: updater)
+            if Demo.on { DemoFrame(content: Shell(auth: auth, updater: updater)) } else { Shell(auth: auth, updater: updater) }
         }
         .buttonStyle(PressStyle())
         .overlay(alignment: .top) {
@@ -66,7 +66,7 @@ struct RootView: View {
         }
         .task {
             while !Task.isCancelled {
-                if autoUpdate { await updater.check() }
+                if autoUpdate && !Demo.on { await updater.check() }
                 try? await Task.sleep(nanoseconds: 3_600_000_000_000)
             }
         }

@@ -18,6 +18,12 @@ final class Player: ObservableObject {
     init(api: API) { self.api = api }
 
     func start() async {
+        if Demo.on {
+            state = Demo.state; devices = [Demo.device]
+            anchorMS = Demo.state.progress_ms ?? 0; anchorDate = Date()
+            playlists = Demo.playlists; tracks = Demo.tracks; title = "Night Drive"
+            return
+        }
         while !Task.isCancelled {
             if api.auth.loggedIn {
                 if playlists.isEmpty { await loadPlaylists() }
