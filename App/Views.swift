@@ -35,12 +35,15 @@ struct RootView: View {
 
     var body: some View {
         let pal = Pal(UIColor(hex: hex) ?? UIColor(hex: Pal.phosphor)!)
-        ZStack {
-            pal.bg.ignoresSafeArea()
-            if Demo.on { DemoFrame(content: Shell(auth: auth, updater: updater)) } else { Shell(auth: auth, updater: updater) }
-            if booting && (bootOn || Demo.screen == "boot") && (!Demo.on || Demo.screen == "boot") {
+        let app = ZStack {
+            Shell(auth: auth, updater: updater)
+            if booting && (Demo.on ? Demo.screen == "boot" : bootOn) {
                 BootView { withAnimation(.easeOut(duration: 0.4)) { booting = false } }.transition(.opacity)
             }
+        }
+        ZStack {
+            pal.bg.ignoresSafeArea()
+            if Demo.on { DemoFrame(content: app) } else { app }
         }
         .environment(\.pal, pal)
         .buttonStyle(PressStyle())

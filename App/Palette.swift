@@ -85,15 +85,15 @@ final class ArtModel: ObservableObject {
 
     func load(_ s: String?) async {
         guard let s, s != url, let u = URL(string: s) else { return }
-        url = s
-        let cached = ImageCache.shared.object(forKey: s as NSString)
-        var img = cached
+        var img = ImageCache.shared.object(forKey: s as NSString)
         if img == nil, let (data, _) = try? await URLSession.shared.data(from: u) { img = UIImage(data: data) }
-        guard let img else { return }
-        if cached == nil { ImageCache.shared.setObject(img, forKey: s as NSString) }
+        // only remember the cover once it really loaded, so an interrupted download is tried again
+        guard let img, !Task.isCancelled else { return }
+        ImageCache.shared.setObject(img, forKey: s as NSString)
         let n = self.n
         let a = await Task.detached { Palette.analyze(img, n: n) }.value
-        guard url == s else { return }
+        guard !Task.isCancelled else { return }   // a newer song started meanwhile
+        url = s
         image = img; colors = a.colors; dots = a.dots; field = a.field
     }
 
