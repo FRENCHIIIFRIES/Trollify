@@ -9,8 +9,7 @@ enum Demo {
     static var landscape: Bool { UserDefaults.standard.string(forKey: "orient") != "portrait" }
 
     private static func art(_ seed: String) -> [Img] {
-        [Img(url: "https://picsum.photos/seed/\(seed)/640/640", width: 640),
-         Img(url: "https://picsum.photos/seed/\(seed)/300/300", width: 300)]
+        [Img(url: "https://frenchiiifries.github.io/Trollify/demo/\(seed).png", width: 640)]
     }
 
     private static func track(_ name: String, _ artist: String, _ seed: String, _ secs: Int) -> Track {
@@ -19,26 +18,26 @@ enum Demo {
     }
 
     static let tracks: [Track] = [
-        track("Low Sun", "Marlow Kade", "lowsun", 228),
-        track("Coastline Static", "Marlow Kade", "coast", 201),
-        track("Paper Planets", "Juno Vale", "paper", 189),
-        track("Glasshouse", "The Quiet Engines", "glass", 243),
-        track("Night Bus Home", "Ola Brenner", "nightbus", 176),
-        track("Saltwater Radio", "Juno Vale", "salt", 214),
-        track("Neon Orchard", "Kite Theory", "orchard", 232),
-        track("Slow Motion Summer", "Ola Brenner", "summer", 198),
+        track("Low Sun", "Marlow Kade", "cover", 228),
+        track("Coastline Static", "Marlow Kade", "c2", 201),
+        track("Paper Planets", "Juno Vale", "c3", 189),
+        track("Glasshouse", "The Quiet Engines", "c4", 243),
+        track("Night Bus Home", "Ola Brenner", "c5", 176),
+        track("Saltwater Radio", "Juno Vale", "c6", 214),
+        track("Neon Orchard", "Kite Theory", "c7", 232),
+        track("Slow Motion Summer", "Ola Brenner", "c8", 198),
     ]
 
     static let playlists: [Playlist] = [
-        Playlist(id: "p1", name: "Night Drive", uri: "spotify:playlist:p1", images: art("drive")),
-        Playlist(id: "p2", name: "Focus", uri: "spotify:playlist:p2", images: art("focus")),
-        Playlist(id: "p3", name: "Gym Rotation", uri: "spotify:playlist:p3", images: art("gym")),
-        Playlist(id: "p4", name: "Old Favourites", uri: "spotify:playlist:p4", images: art("old")),
-        Playlist(id: "p5", name: "Rainy Sunday", uri: "spotify:playlist:p5", images: art("rain")),
-        Playlist(id: "p6", name: "Road Trip 2026", uri: "spotify:playlist:p6", images: art("road")),
+        Playlist(id: "p1", name: "Night Drive", uri: "spotify:playlist:p1", images: art("cover")),
+        Playlist(id: "p2", name: "Focus", uri: "spotify:playlist:p2", images: art("c2")),
+        Playlist(id: "p3", name: "Gym Rotation", uri: "spotify:playlist:p3", images: art("c3")),
+        Playlist(id: "p4", name: "Old Favourites", uri: "spotify:playlist:p4", images: art("c5")),
+        Playlist(id: "p5", name: "Rainy Sunday", uri: "spotify:playlist:p5", images: art("c6")),
+        Playlist(id: "p6", name: "Road Trip 2026", uri: "spotify:playlist:p6", images: art("c7")),
     ]
 
-    static let device = Device(id: "demo", name: "Trollify iPad", type: "Tablet", is_active: true)
+    static let device = Device(id: "demo", name: "h3arth iPad", type: "Tablet", is_active: true)
     static let state = PlayerState(is_playing: true, item: tracks[0], progress_ms: 134_000, device: device)
 
     // Original placeholder lyrics, written for screenshots.

@@ -15,6 +15,8 @@ jobs:
           mkdir -p "$APP"
           xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -sdk "$SDK" -parse-as-library -O App/*.swift -o "$APP/Trollify"
           cp App/Info.plist "$APP/"
+          cp App/Icons/*.png "$APP/"
+          curl -fsSL -o "$APP/VT323-Regular.ttf" https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/VT323-Regular.ttf
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$APP/Info.plist"
           ldid -Sentitlements.plist "$APP/Trollify"
           (cd build && zip -qr Trollify.ipa Payload)

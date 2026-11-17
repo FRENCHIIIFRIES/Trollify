@@ -11,6 +11,8 @@ final class Player: ObservableObject {
     @Published var tracks: [Track] = []
     @Published var title = "Your library"
     @Published var message: String?
+    @Published var queue: [Track] = []
+    @Published var openPlaylist: Playlist?   // its cover sets the colours of the music page
     private var anchorMS = 0
     private var anchorDate = Date()
     private var context: String?   // playlist uri of the list being shown
@@ -22,6 +24,7 @@ final class Player: ObservableObject {
             state = Demo.state; devices = [Demo.device]
             anchorMS = Demo.state.progress_ms ?? 0; anchorDate = Date()
             playlists = Demo.playlists; tracks = Demo.tracks; title = "Night Drive"
+            openPlaylist = Demo.playlists[0]; queue = Array(Demo.tracks.dropFirst())
             return
         }
         while !Task.isCancelled {
@@ -61,6 +64,7 @@ final class Player: ObservableObject {
 
     func open(_ p: Playlist?) async {
         title = p?.name ?? "Liked Songs"
+        openPlaylist = p
         context = p?.uri
         let path = p.map { "/playlists/\($0.id)/tracks" } ?? "/me/tracks"
         if let page: Page<TrackItem> = try? await api.get(path, ["limit": "100"]) {
@@ -71,6 +75,7 @@ final class Player: ObservableObject {
     func search(_ q: String) async {
         guard !q.isEmpty else { return }
         title = "Results for \"\(q)\""
+        openPlaylist = nil
         context = nil
         if let r: SearchResult = try? await api.get("/search", ["q": q, "type": "track", "limit": "30"]) {
             tracks = r.tracks.items
@@ -83,6 +88,20 @@ final class Player: ObservableObject {
             message = e.status == 404 ? "No active device. Open Spotify on a device, then pick it with the device button." : "Spotify error \(e.status)"
         } catch { message = "Network problem. Check Wi-Fi." }
         await refresh()
+    }
+
+    /// What plays after this song (Spotify's queue), refreshed when the song changes.
+    func loadQueue() async {
+        if Demo.on { return }
+        struct Q: Decodable { let queue: [Track] }
+        if let q: Q = try? await api.get("/me/player/queue") { queue = q.queue }
+    }
+
+    /// [ play ] / [ shuffle ] on an open playlist.
+    func playAll(shuffle: Bool) async {
+        guard let first = tracks.first else { return }
+        await send("PUT", "/me/player/shuffle?state=\(shuffle)")
+        await play(first)
     }
 
     func toggle() async { await send("PUT", state?.is_playing == true ? "/me/player/pause" : "/me/player/play") }

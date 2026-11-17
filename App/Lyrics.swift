@@ -47,6 +47,17 @@ final class Lyrics: ObservableObject {
         }
     }
 
+    /// The lines around a playback position, and how far through the current line we are (0...1),
+    /// spread evenly over its words. shortcut: LRC only times lines, so word timing is an estimate.
+    func karaoke(atMS ms: Int) -> (prev: String, cur: String, frac: Double, next: [String]) {
+        let t = Double(ms) / 1000
+        guard !lines.isEmpty else { return ("", "", 0, []) }
+        guard let i = lines.lastIndex(where: { $0.t <= t }) else { return ("", "", 0, lines.prefix(2).map(\.text)) }
+        let end = i + 1 < lines.count ? lines[i + 1].t : lines[i].t + 4
+        let frac = max(0, min(1, (t - lines[i].t) / max(end - lines[i].t, 0.5)))
+        return (i > 0 ? lines[i - 1].text : "", lines[i].text, frac, Array(lines[(i + 1)...].prefix(2)).map(\.text))
+    }
+
     /// (current line, next line) for a playback position.
     func pair(atMS ms: Int) -> (String, String) {
         guard !lines.isEmpty else { return ("", "") }

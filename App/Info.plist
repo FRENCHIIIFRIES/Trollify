@@ -3,14 +3,18 @@
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>Trollify</string>
 <key>CFBundleIdentifier</key><string>com.example.trollify</string>
-<key>CFBundleName</key><string>Trollify</string>
-<key>CFBundleDisplayName</key><string>Trollify</string>
+<key>CFBundleName</key><string>h3arth</string>
+<key>CFBundleDisplayName</key><string>h3arth</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 <key>UIDeviceFamily</key><array><integer>2</integer></array>
 <key>NSCameraUsageDescription</key><string>Scan the login QR code shown on your PC.</string>
+<key>UIAppFonts</key><array><string>VT323-Regular.ttf</string></array>
+<key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict><key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array></dict></dict>
+<key>CFBundleIcons~ipad</key><dict><key>CFBundlePrimaryIcon</key><dict><key>CFBundleIconFiles</key><array><string>AppIcon60x60</string><string>AppIcon76x76</string><string>AppIcon83.5x83.5</string></array></dict></dict>
+<key>UIStatusBarHidden</key><true/>
 <key>UILaunchScreen</key><dict/>
 <key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string><string>UIInterfaceOrientationPortrait</string></array>
 </dict></plist>

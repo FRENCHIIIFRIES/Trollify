@@ -1,28 +1,19 @@
 import SwiftUI
 
-enum Theme {
-    static let bg = Color(red: 0.03, green: 0.03, blue: 0.035)
-    static let surface = Color(red: 0.11, green: 0.11, blue: 0.14)
-    static let card = Color.white.opacity(0.07)
-    static let red = Color(red: 1.0, green: 0.27, blue: 0.25)
-    static let dim = Color.white.opacity(0.55)
-    static func mono(_ size: CGFloat, _ w: Font.Weight = .regular) -> Font { .system(size: size, weight: w, design: .rounded) }   // name kept from the old look; it is the rounded UI font now
-}
-
 enum ImageCache { static let shared: NSCache<NSString, UIImage> = { let c = NSCache<NSString, UIImage>(); c.countLimit = 120; return c }() }
 
 /// Cover art with an in-memory cache and a short fade-in (AsyncImage re-downloads while scrolling).
 struct Art: View {
+    @Environment(\.pal) private var pal
     let url: String?
     var size: CGFloat
-    var radius: CGFloat = 10
     @State private var img: UIImage?
     var body: some View {
         ZStack {
-            Theme.surface
+            pal.hover
             if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
         }
-        .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .frame(width: size, height: size).clipped()
         .task(id: url) { await load() }
     }
     private func load() async {
@@ -34,34 +25,29 @@ struct Art: View {
     }
 }
 
-/// Gentle press feedback on every button.
-struct PressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .opacity(configuration.isPressed ? 0.8 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
 struct RootView: View {
     @StateObject var auth = Auth()
     @StateObject var updater = Updater()
     @AppStorage("opt.autoupdate") private var autoUpdate = true
+    @AppStorage("opt.color") private var hex = Pal.phosphor
+    @AppStorage("opt.boot") private var bootOn = true
+    @State private var booting = true
+
     var body: some View {
+        let pal = Pal(UIColor(hex: hex) ?? UIColor(hex: Pal.phosphor)!)
         ZStack {
-            LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.09), Color(red: 0.10, green: 0.06, blue: 0.13), .black],
-                           startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+            pal.bg.ignoresSafeArea()
             if Demo.on { DemoFrame(content: Shell(auth: auth, updater: updater)) } else { Shell(auth: auth, updater: updater) }
+            if booting && (bootOn || Demo.screen == "boot") && (!Demo.on || Demo.screen == "boot") {
+                BootView { withAnimation(.easeOut(duration: 0.4)) { booting = false } }.transition(.opacity)
+            }
         }
+        .environment(\.pal, pal)
         .buttonStyle(PressStyle())
+        .preferredColorScheme(.dark)
         .overlay(alignment: .top) {
-            if updater.available != nil {
-                Button { updater.install() } label: {
-                    DotText(text: "UPDATE AVAILABLE - TAP TO INSTALL", dot: 2.6, color: .black)
-                        .padding(.horizontal, 18).padding(.vertical, 10).background(Capsule().fill(Color.white))
-                }
-                .padding(.top, 8)
+            if updater.available != nil && !booting {
+                TermBtn(label: "update ready, tap to install", solid: true) { updater.install() }.padding(.top, 6).environment(\.pal, pal)
             }
         }
         .task {
@@ -74,30 +60,22 @@ struct RootView: View {
 }
 
 struct LoginView: View {
+    @Environment(\.pal) private var pal
     @ObservedObject var auth: Auth
     @State private var scanning = false
     var body: some View {
-        VStack(spacing: 26) {
-            HStack(spacing: 6) { ForEach(0..<5) { i in Circle().fill(i == 0 ? Theme.red : .white).frame(width: 12, height: 12) } }
-            DotText(text: "TROLLIFY", dot: 8)
-            Text("Connect Spotify (Premium) to browse and control music.").font(Theme.mono(14)).foregroundColor(Theme.dim)
-            Button { auth.login() } label: {
-                Text("CONNECT SPOTIFY").font(Theme.mono(16, .bold)).foregroundColor(.black)
-                    .padding(.horizontal, 32).padding(.vertical, 16).background(Capsule().fill(Color.white))
+        VStack(spacing: 22) {
+            HStack(spacing: 16) { EmberMark(size: 70); Wordmark(size: 10) }
+            Text("// connect spotify (premium) to browse and control your music").font(.term(21)).foregroundColor(pal.quiet)
+            HStack(spacing: 12) {
+                TermBtn(label: "connect spotify", solid: true) { auth.login() }
+                TermBtn(label: "scan qr from pc") { scanning = true }
             }
-            Button { scanning = true } label: {
-                Text("SCAN QR FROM PC").font(Theme.mono(14, .bold)).foregroundColor(.white)
-                    .padding(.horizontal, 28).padding(.vertical, 14).overlay(Capsule().stroke(Color.white, lineWidth: 1.5))
-            }
-            Text("Stuck on Spotify's page? On your PC open\nfrenchiiifries.github.io/Trollify/login.html")
-                .font(Theme.mono(11)).foregroundColor(Theme.dim).multilineTextAlignment(.center)
-            if let e = auth.error {
-                Text(e).font(Theme.mono(12)).foregroundColor(Theme.red).multilineTextAlignment(.center).padding(.horizontal, 40)
-            }
-            if Config.clientID.hasPrefix("PASTE") {
-                Text("Set your Client ID in Config.swift first.").font(Theme.mono(12)).foregroundColor(Theme.red)
-            }
+            Text("// stuck on spotify's page? on your pc open frenchiiifries.github.io/Trollify/login.html")
+                .font(.term(18)).foregroundColor(pal.dim).multilineTextAlignment(.center)
+            if let e = auth.error { Text("! " + e).font(.term(19)).foregroundColor(pal.hi).multilineTextAlignment(.center).padding(.horizontal, 40) }
         }
+        .glow()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $scanning) {
             QRScanner { code in scanning = false; Task { await auth.pair(code) } }.ignoresSafeArea()
@@ -105,8 +83,9 @@ struct LoginView: View {
     }
 }
 
-/// Spotify library: a shelf of playlist covers, then the track list.
+/// Library on the left, the open playlist on the right; the playlist's cover sets the page colours.
 struct MusicView: View {
+    @Environment(\.pal) private var pal
     @ObservedObject var auth: Auth
     @ObservedObject var player: Player
     @State private var query = ""
@@ -115,89 +94,117 @@ struct MusicView: View {
         if !auth.loggedIn {
             LoginView(auth: auth)
         } else {
-            VStack(spacing: 0) {
-                if let m = player.message {
-                    Text(m).font(Theme.mono(12, .semibold)).foregroundColor(.white).frame(maxWidth: .infinity)
-                        .padding(10).background(Theme.red)
-                }
+            HStack(spacing: 0) {
+                library.frame(width: 250)
+                Rectangle().fill(pal.line).frame(width: 1)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
+                        search
+                        if let m = player.message { Text("! " + m).font(.term(19)).foregroundColor(pal.hi).padding(.top, 10) }
                         header
-                        shelf
-                        Text(player.title).font(Theme.mono(22, .bold)).padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 8)
+                        columns
                         ForEach(Array(player.tracks.enumerated()), id: \.offset) { i, t in
                             Button { Task { await player.play(t) } } label: { row(i, t) }
                         }
                     }
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, 24).padding(.vertical, 16)
                 }
             }
         }
+    }
+
+    private var library: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("// library").font(.term(18)).foregroundColor(pal.dim).padding(.horizontal, 18).padding(.bottom, 6)
+                libraryRow(nil, "liked songs", art: nil)
+                ForEach(player.playlists) { p in libraryRow(p, p.name, art: p.art(min: 60)) }
+                Button("[ log out ]") { auth.logout() }.font(.term(18)).foregroundColor(pal.dim).padding(18)
+            }
+            .padding(.vertical, 16)
+        }
+        .background(Color.black.opacity(0.18))
+    }
+
+    private func libraryRow(_ p: Playlist?, _ name: String, art: String?) -> some View {
+        let on = player.openPlaylist?.id == p?.id && (p != nil || player.title == "Liked Songs")
+        return Button { Task { await player.open(p) } } label: {
+            HStack(spacing: 10) {
+                Text(on ? ">" : " ").font(.term(22)).foregroundColor(pal.ph).frame(width: 10)
+                if p == nil { Text("♥").font(.term(26)).foregroundColor(pal.ph).frame(width: 30, height: 30).box(pal.line) } else { Art(url: art, size: 30) }
+                Text(name.lowercased()).font(.term(22)).foregroundColor(on ? pal.hi : pal.quiet).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(on ? pal.hover : Color.clear)
+            .glow()
+        }
+    }
+
+    private var search: some View {
+        HStack(spacing: 10) {
+            Text(">").font(.term(24)).foregroundColor(pal.ph)
+            TextField("", text: $query)
+                .font(.term(22)).foregroundColor(pal.hi).accentColor(pal.ph)
+                .placeholder(when: query.isEmpty) { Text("search songs, artists, albums...").font(.term(22)).foregroundColor(pal.dim) }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(Color.black.opacity(0.22)).box(pal.ph)
+                .onSubmit { Task { await player.search(query) } }
+            TermBtn(label: "find") { Task { await player.search(query) } }
+        }
+        .glow()
     }
 
     private var header: some View {
-        HStack(spacing: 16) {
-            Text("Music").font(.system(size: 38, weight: .bold, design: .rounded))
+        HStack(alignment: .bottom, spacing: 22) {
+            if let p = player.openPlaylist {
+                Art(url: p.art(min: 300), size: 150).shadow(color: .black.opacity(0.5), radius: 18, y: 12).box(pal.lineStrong)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(player.title.lowercased()).font(.term(58)).foregroundColor(pal.hi).lineLimit(1).minimumScaleFactor(0.5).glow(true)
+                Text("// \(player.tracks.count) songs, \(player.tracks.compactMap(\.duration_ms).reduce(0, +) / 60000) min")
+                    .font(.term(20)).foregroundColor(pal.quiet)
+                HStack(spacing: 10) {
+                    TermBtn(label: "play", solid: true) { Task { await player.playAll(shuffle: false) } }
+                    TermBtn(label: "shuffle") { Task { await player.playAll(shuffle: true) } }
+                }
+                .padding(.top, 6)
+            }
+        }
+        .padding(.top, 22).padding(.bottom, 16)
+    }
+
+    private var columns: some View {
+        HStack {
+            Text("#").frame(width: 40, alignment: .leading)
+            Text("title")
             Spacer()
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundColor(Theme.dim)
-                TextField("Search songs", text: $query).font(Theme.mono(15))
-                    .onSubmit { Task { await player.search(query) } }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 11).frame(width: 300)
-            .background(Capsule().fill(Theme.card))
+            Text("artist").frame(width: 230, alignment: .leading)
+            Text("time").frame(width: 54, alignment: .trailing)
         }
-        .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 18)
-    }
-
-    private var shelf: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 16) {
-                shelfCard("Liked Songs", art: nil) { await player.open(nil) }
-                ForEach(player.playlists) { p in
-                    shelfCard(p.name, art: p.art(min: 200)) { await player.open(p) }
-                }
-            }
-            .padding(.horizontal, 28)
-        }
-    }
-
-    private func shelfCard(_ name: String, art: String?, _ open: @escaping () async -> Void) -> some View {
-        Button { Task { await open() } } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                ZStack {
-                    if art == nil {
-                        LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        Image(systemName: "heart.fill").font(.system(size: 36)).foregroundColor(.white)
-                    } else {
-                        Art(url: art, size: 136, radius: 18)
-                    }
-                }
-                .frame(width: 136, height: 136).clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                Text(name).font(Theme.mono(13, .semibold)).foregroundColor(.white).lineLimit(2)
-                    .multilineTextAlignment(.leading).frame(width: 136, alignment: .leading)
-            }
-        }
+        .font(.mono(11)).foregroundColor(pal.dim).padding(.horizontal, 10).padding(.bottom, 4)
+        .overlay(alignment: .bottom) { Rectangle().fill(pal.lineStrong).frame(height: 1) }
     }
 
     private func row(_ i: Int, _ t: Track) -> some View {
         let playing = player.state?.item?.uri == t.uri
-        return HStack(spacing: 14) {
-            Art(url: t.art(min: 100), size: 52, radius: 10)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(t.name).font(Theme.mono(16, .semibold)).foregroundColor(playing ? Theme.red : .white).lineLimit(1)
-                Text(t.artistLine).font(Theme.mono(13)).foregroundColor(Theme.dim).lineLimit(1)
-            }
+        return HStack {
+            Text(playing ? "♪" : String(format: "%02d", i + 1)).font(.mono(13)).frame(width: 40, alignment: .leading)
+            Text(t.name.lowercased()).font(.term(23)).lineLimit(1)
             Spacer()
-            if playing { Image(systemName: "waveform").foregroundColor(Theme.red) }
+            Text(t.artistLine.lowercased()).font(.term(23)).lineLimit(1).frame(width: 230, alignment: .leading)
+                .foregroundColor(playing ? pal.bg : pal.quiet)
+            Text(clock(t.duration_ms ?? 0)).font(.mono(12)).frame(width: 54, alignment: .trailing)
         }
-        .padding(.horizontal, 14).padding(.vertical, 7)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(playing ? Theme.red.opacity(0.12) : Color.clear))
-        .padding(.horizontal, 14)
+        .foregroundColor(playing ? pal.bg : pal.ph)
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(Group { if playing { LinearGradient(colors: pal.fill, startPoint: .leading, endPoint: .trailing) } })
+        .overlay(alignment: .bottom) { Rectangle().fill(pal.line).frame(height: 1) }
+        .glow()
     }
 }
 
 @main
 struct TrollifyApp: App {
-    var body: some Scene { WindowGroup { RootView().preferredColorScheme(.dark) } }
+    var body: some Scene { WindowGroup { RootView() } }
 }

@@ -72,26 +72,23 @@ struct WebRep: UIViewRepresentable {
 
 /// Web tab with a small dot-matrix toolbar.
 struct WebPane: View {
+    @Environment(\.pal) private var pal
     let store: WebStore
     let page: WebTab
     var trailing: AnyView = AnyView(EmptyView())
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 18) {
-                DotText(text: page.title, dot: 3, color: Theme.red)
+            HStack(spacing: 8) {
+                Text("// " + page.title.lowercased()).font(.term(20)).foregroundColor(pal.quiet).glow()
                 Spacer()
                 trailing
-                bar("chevron.left") { store.view(for: page).goBack() }
-                bar("arrow.clockwise") { store.view(for: page).reload() }
-                bar("house") { if let u = URL(string: page.url) { store.view(for: page).load(URLRequest(url: u)) } }
+                TermBtn(label: "<", size: 17) { store.view(for: page).goBack() }
+                TermBtn(label: "reload", size: 17) { store.view(for: page).reload() }
+                TermBtn(label: "home", size: 17) { if let u = URL(string: page.url) { store.view(for: page).load(URLRequest(url: u)) } }
             }
-            .padding(.horizontal, 14).padding(.vertical, 8).background(Theme.surface)
+            .padding(.horizontal, 14).padding(.vertical, 6)
             WebRep(store: store, page: page)
         }
-    }
-
-    private func bar(_ icon: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: icon).font(.system(size: 16)).foregroundColor(.white).frame(width: 34, height: 30) }
     }
 }

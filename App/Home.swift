@@ -1,130 +1,153 @@
 import SwiftUI
 
-/// Home: greeting + dot-matrix clock, now-playing card, and a grid of app tiles.
+/// Home, laid out like emb3r's hero: the mark and the name, the face, then what's playing,
+/// the app tiles, what's up next, and a prompt at the bottom.
 struct HomeView: View {
+    @Environment(\.pal) private var pal
     @ObservedObject var player: Player
+    @ObservedObject var art: ArtModel
     @ObservedObject var tiles: TileStore
     var go: (String) -> Void
+    @State private var query = ""
     @State private var adding = false
-    @State private var battery = 0
-
-    private static let time: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f }()
-    private static let day: DateFormatter = { let f = DateFormatter(); f.dateFormat = "EEEE, d MMMM"; return f }()
-
-    private var greeting: String {
-        let h = Calendar.current.component(.hour, from: Date())
-        return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
-    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                header
-                hero
-                pills
-                Text("Apps").font(Theme.mono(22, .bold))
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 16)], spacing: 16) {
-                    appTile("Music", "Your Spotify library", "music.note", [.green, .mint], "music")
-                    appTile("Player", "Cover, lyrics, controls", "waveform", [.purple, .indigo], "now")
-                    appTile("YouTube", "Videos", "play.fill", [.red, .orange], WebTab.youtube.id)
-                    appTile("Instagram", "Feed and reels", "camera.fill", [.pink, .orange], WebTab.instagram.id)
-                    ForEach(tiles.custom) { p in
-                        appTile(p.title.capitalized, URL(string: p.url)?.host ?? "", "globe", [.blue, .cyan], p.id)
-                            .contextMenu { Button("Remove tile") { tiles.remove(p) } }
+        GeometryReader { g in
+            let narrow = g.size.width < 900
+            VStack(spacing: narrow ? 14 : 18) {
+                hero(narrow)
+                nowPlaying
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: narrow ? 3 : 5), spacing: 12) {
+                    tile(1, "music", glyph: "♫  ♪\n ♪ ♫") { go("music") }
+                    tile(2, "player", glyph: "[▮▮▮▯▯]\n lyrics") { go("player") }
+                    tile(3, "youtube", glyph: "┌────┐\n│ ▶  │\n└────┘") { go(WebTab.youtube.id) }
+                    tile(4, "insta", glyph: "╭────╮\n│ ◎ •│\n╰────╯") { go(WebTab.instagram.id) }
+                    ForEach(Array(tiles.custom.enumerated()), id: \.element.id) { i, t in
+                        tile(5 + i, t.title.lowercased(), glyph: "┌──┐\n│◉ │\n└──┘") { go(t.id) }
+                            .contextMenu { Button("Remove tile") { tiles.remove(t) } }
                     }
                     Button { adding = true } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: "plus").font(.system(size: 22, weight: .semibold))
-                            Text("Add tile").font(Theme.mono(14, .semibold))
-                        }
-                        .foregroundColor(Theme.dim).frame(maxWidth: .infinity, minHeight: 112)
-                        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 1.5, dash: [6, 6])))
+                        Text("[ + add tile ]").font(.term(21)).foregroundColor(pal.dim)
+                            .frame(maxWidth: .infinity, minHeight: 104)
+                            .overlay(Rectangle().stroke(pal.dim, style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
                     }
                 }
+                upNext
+                Spacer(minLength: 0)
+                prompt
             }
-            .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 30)
+            .padding(.horizontal, narrow ? 22 : 34).padding(.top, 20).padding(.bottom, 18)
         }
         .sheet(isPresented: $adding) { AddTile(tiles: tiles) }
-        .onAppear {
-            UIDevice.current.isBatteryMonitoringEnabled = true
-            battery = max(Int(UIDevice.current.batteryLevel * 100), 0)
+    }
+
+    private func hero(_ narrow: Bool) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 20) {
+                EmberMark(size: narrow ? 78 : 100)
+                Wordmark(size: narrow ? 11 : 14)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text(emberFace(playing: player.state?.is_playing == true)).font(.term(30)).foregroundColor(pal.ph)
+                Text("mood " + String(repeating: "#", count: player.state?.is_playing == true ? 5 : 2)).font(.term(17)).foregroundColor(pal.quiet)
+            }
+            .glow()
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(greeting).font(.system(size: 38, weight: .bold, design: .rounded))
-                Text(Self.day.string(from: Date())).font(Theme.mono(16)).foregroundColor(Theme.dim)
-            }
-            Spacer()
-            TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                DotText(text: Self.time.string(from: ctx.date), dot: 6.5, color: .white, off: Color.white.opacity(0.08))
-            }
-        }
-    }
-
-    private var hero: some View {
-        let t = player.state?.item
-        return HStack(spacing: 22) {
-            Art(url: t?.art(min: 300), size: 124, radius: 18)
-            VStack(alignment: .leading, spacing: 8) {
-                Text(t == nil ? "NOT PLAYING" : "NOW PLAYING").font(Theme.mono(11, .bold)).tracking(1.6).foregroundColor(Theme.red)
-                Text(t?.name ?? "Pick something in Music").font(.system(size: 26, weight: .bold, design: .rounded)).lineLimit(2)
-                Text(t?.artistLine ?? "or start Spotify on a device").font(Theme.mono(15)).foregroundColor(Theme.dim).lineLimit(1)
-                if t != nil {
-                    HStack(spacing: 14) {
-                        Button { Task { await player.toggle() } } label: {
-                            Image(systemName: player.state?.is_playing == true ? "pause.fill" : "play.fill")
-                                .font(.system(size: 18)).foregroundColor(.black).frame(width: 46, height: 46).background(Circle().fill(Color.white))
-                        }
-                        Button { Task { await player.next() } } label: {
-                            Image(systemName: "forward.fill").font(.system(size: 18)).foregroundColor(.white).frame(width: 46, height: 46)
-                        }
+    @ViewBuilder private var nowPlaying: some View {
+        if let t = player.state?.item {
+            HStack(spacing: 18) {
+                DitherArt(dots: art.dots, n: art.n, size: 78)
+                VStack(alignment: .leading, spacing: 4) {
+                    (Text(t.name.lowercased()).font(.term(27)) + Text("  // \(t.artistLine.lowercased())").font(.term(20)).foregroundColor(pal.quiet))
+                        .lineLimit(1)
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        let ms = player.nowMS(ctx.date), dur = max(t.duration_ms ?? 1, 1)
+                        Text("\(clock(ms)) \(asciiBar(Double(ms) / Double(dur), 30)) \(clock(dur))").font(.mono(13)).foregroundColor(pal.quiet)
                     }
-                    .padding(.top, 4)
+                }
+                .foregroundColor(pal.ph).glow()
+                Spacer(minLength: 0)
+                TermBtn(label: "|<") { Task { await player.previous() } }
+                TermBtn(label: player.state?.is_playing == true ? "pause" : "play", solid: true) { Task { await player.toggle() } }
+                TermBtn(label: ">|") { Task { await player.next() } }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .box(pal.lineStrong)
+            .contentShape(Rectangle())
+            .onTapGesture { go("player") }
+        } else {
+            Text("// nothing playing. open music, or start spotify on any device")
+                .font(.term(20)).foregroundColor(pal.quiet).frame(maxWidth: .infinity, minHeight: 70).box(pal.line)
+        }
+    }
+
+    private func tile(_ k: Int, _ name: String, glyph: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(glyph).font(.mono(13)).foregroundColor(pal.quiet).fixedSize()
+                Spacer(minLength: 8)
+                Text(name).font(.term(28)).foregroundColor(pal.ph).lineLimit(1)
+            }
+            .glow()
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .overlay(alignment: .topTrailing) { Text("\(k)").font(.mono(11)).foregroundColor(pal.dim).padding(9) }
+            .box(pal.lineStrong)
+        }
+    }
+
+    @ViewBuilder private var upNext: some View {
+        if !player.queue.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("// up next").font(.term(18)).foregroundColor(pal.quiet).padding(.bottom, 4)
+                ForEach(Array(player.queue.prefix(2).enumerated()), id: \.offset) { i, t in
+                    HStack {
+                        Text(String(format: "%02d", i + 2)).font(.mono(12)).foregroundColor(pal.dim).frame(width: 34, alignment: .leading)
+                        Text(t.name.lowercased()).font(.term(21)).foregroundColor(pal.ph).lineLimit(1)
+                        Spacer()
+                        Text(t.artistLine.lowercased()).font(.term(21)).foregroundColor(pal.quiet).lineLimit(1).frame(width: 260, alignment: .leading)
+                        Text(clock(t.duration_ms ?? 0)).font(.mono(12)).foregroundColor(pal.dim).frame(width: 52, alignment: .trailing)
+                    }
+                    .padding(.vertical, 4)
+                    .overlay(alignment: .bottom) { Rectangle().fill(pal.line).frame(height: 1) }
                 }
             }
-            Spacer(minLength: 0)
-        }
-        .padding(20).frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .fill(LinearGradient(colors: [Color.white.opacity(0.13), Color.white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-        .contentShape(Rectangle())
-        .onTapGesture { go("now") }
-    }
-
-    private var pills: some View {
-        HStack(spacing: 12) {
-            pill("hifispeaker.fill", player.state?.device?.name ?? "No device")
-            pill("battery.100", "\(battery)%")
+            .glow()
         }
     }
 
-    private func pill(_ icon: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 13)).foregroundColor(Theme.red)
-            Text(text).font(Theme.mono(13, .semibold)).lineLimit(1)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 9).background(Capsule().fill(Theme.card))
-    }
-
-    private func appTile(_ title: String, _ sub: String, _ icon: String, _ colors: [Color], _ id: String) -> some View {
-        Button { go(id) } label: {
-            VStack(alignment: .leading, spacing: 16) {
-                Image(systemName: icon).font(.system(size: 22, weight: .semibold)).foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(Theme.mono(17, .semibold)).foregroundColor(.white)
-                    Text(sub).font(Theme.mono(12)).foregroundColor(Theme.dim).lineLimit(1)
-                }
+    private var prompt: some View {
+        VStack(spacing: 8) {
+            Text("// type a song and hit enter to play it").font(.term(19)).foregroundColor(pal.quiet).glow()
+            HStack(spacing: 10) {
+                Text(">").font(.term(24)).foregroundColor(pal.ph)
+                TextField("", text: $query)
+                    .font(.term(22)).foregroundColor(pal.hi).accentColor(pal.ph)
+                    .placeholder(when: query.isEmpty) { Text("search spotify...").font(.term(22)).foregroundColor(pal.dim) }
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .box(pal.ph)
+                    .onSubmit(send)
+                TermBtn(label: "play", action: send)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Theme.card))
+            .glow()
         }
+    }
+
+    private func send() {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return }
+        go("music")
+        Task { await player.search(q); if let t = player.tracks.first { await player.play(t) } }
+        query = ""
+    }
+}
+
+extension View {
+    /// A placeholder we can colour (TextField's own is always system grey).
+    func placeholder<P: View>(when show: Bool, @ViewBuilder _ p: () -> P) -> some View {
+        ZStack(alignment: .leading) { if show { p().allowsHitTesting(false) }; self }
     }
 }
 

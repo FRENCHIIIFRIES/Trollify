@@ -17,6 +17,8 @@ jobs:
           xcrun -sdk iphonesimulator swiftc -target arm64-apple-ios15.0-simulator -sdk "$SDK" -parse-as-library \
             $(ls App/*.swift | grep -v Engine.swift) -o "$APP/Trollify"
           cp App/Info.plist "$APP/"
+          cp App/Icons/*.png "$APP/"
+          curl -fsSL -o "$APP/VT323-Regular.ttf" https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/VT323-Regular.ttf
           codesign -s - --force "$APP"
       - name: Boot an iPad simulator
         run: |
@@ -36,9 +38,9 @@ jobs:
           mkdir -p shots
           xcrun simctl install "$UDID" build/Sim/Trollify.app
           for orient in landscape portrait; do
-            for s in home music now settings; do
+            for s in boot home music player card settings; do
               xcrun simctl launch --terminate-running-process "$UDID" com.example.trollify -demo YES -screen "$s" -orient "$orient"
-              sleep 9
+              sleep 12
               xcrun simctl io "$UDID" screenshot "shots/$s-$orient.png"
               if [ "$orient" = landscape ]; then sips -r 270 "shots/$s-$orient.png" >/dev/null; fi
             done
