@@ -11,6 +11,9 @@ struct Shell: View {
     @AppStorage("opt.scanlines") private var scanlines = true
     @StateObject private var player: Player
     @StateObject private var lyrics = Lyrics()
+    @StateObject private var ember = Ember()
+    @AppStorage("opt.reactions") private var reactions = true
+    @State private var lastSong: String?
     @StateObject private var web = WebStore()
     @StateObject private var tiles = TileStore()
     @StateObject private var nowArt = ArtModel()     // the song that's playing
@@ -57,6 +60,13 @@ struct Shell: View {
                     }
                     if !["home", "player", "settings"].contains(current) { NowStrip(player: player, art: nowArt) }
                 }
+                if let m = ember.toast, current != "ember" {
+                    EmberToast(msg: m, reply: { ember.toast = nil; go("ember") }, hide: { ember.toast = nil })
+                        .padding(.top, 60).padding(.trailing, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .task(id: m.id) { try? await Task.sleep(nanoseconds: 9_000_000_000); if ember.toast == m { withAnimation { ember.toast = nil } } }
+                }
                 if scanlines { Scanlines() }
             }
             .box(p.ph)
@@ -65,9 +75,15 @@ struct Shell: View {
         }
         .padding(12)
         .task { await player.start() }
+        .task { await ember.listen() }
+        .onAppear { if Demo.on { Demo.seed(ember) } }
         .task(id: player.state?.item?.uri) {
             await nowArt.load(player.state?.item?.art)
-            if let t = player.state?.item { await lyrics.load(t); await player.loadQueue() }
+            if let t = player.state?.item {
+                if reactions, lastSong != nil, lastSong != t.uri, player.state?.is_playing == true { ember.react(to: t) }
+                lastSong = t.uri
+                await lyrics.load(t); await player.loadQueue()
+            }
         }
         .task(id: player.openPlaylist?.id) { await albumArt.load(player.openPlaylist?.art(min: 300)) }
     }
@@ -81,7 +97,8 @@ struct Shell: View {
 
     @ViewBuilder private var content: some View {
         switch current {
-        case "home": HomeView(player: player, art: nowArt, tiles: tiles, go: go)
+        case "home": HomeView(player: player, art: nowArt, tiles: tiles, ember: ember, go: go)
+        case "ember": EmberTab(ember: ember, player: player)
         case "music": MusicView(auth: auth, player: player)
         case "player": PlayerScreen(player: player, lyrics: lyrics, art: nowArt)
         case "settings": SettingsView(auth: auth, updater: updater, tiles: tiles, albumAccent: nowArt.colors.first)
@@ -98,7 +115,7 @@ struct TopBar: View {
     @Binding var pcSide: Bool
     let wide: Bool
     let status: String
-    private let tabs = [("home", "home"), ("music", "music"), ("player", "player"), ("yt", "youtube"), ("ig", "insta"), ("pc", "pc"), ("settings", "settings")]
+    private let tabs = [("home", "home"), ("music", "music"), ("player", "player"), ("ember", "ember"), ("yt", "youtube"), ("ig", "insta"), ("pc", "pc"), ("settings", "settings")]
     @State private var battery = 0
 
     var body: some View {

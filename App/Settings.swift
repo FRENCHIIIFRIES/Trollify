@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("opt.reduceMotion") private var reduceMotion = false
     @AppStorage("opt.boot") private var boot = true
     @AppStorage("opt.lyrics") private var lyricsOn = true
+    @AppStorage("opt.reactions") private var reactions = true
     @AppStorage("opt.autoupdate") private var autoUpdate = true
     @State private var hexField = ""
 
@@ -46,6 +47,7 @@ struct SettingsView: View {
                         TermToggle(title: "album colours", sub: "opening an album paints the screen in its cover's colours", on: $albumColours)
                         TermToggle(title: "full-screen cover lyrics", sub: "the cover fills the screen behind the words", on: $fullLyrics)
                         TermToggle(title: "show lyrics", sub: "synced lyrics from lrclib", on: $lyricsOn)
+                        TermToggle(title: "ember's song reactions", sub: "a line from ember when a new song starts", on: $reactions)
                     case "updates":
                         TermToggle(title: "check automatically", sub: "looks on github when the app opens", on: $autoUpdate)
                         Text("build \(build)  // \(updater.message.lowercased())").font(.term(22)).foregroundColor(pal.ph)

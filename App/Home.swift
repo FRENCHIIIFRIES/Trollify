@@ -7,6 +7,7 @@ struct HomeView: View {
     @ObservedObject var player: Player
     @ObservedObject var art: ArtModel
     @ObservedObject var tiles: TileStore
+    @ObservedObject var ember: Ember
     var go: (String) -> Void
     @State private var query = ""
     @State private var adding = false
@@ -21,7 +22,17 @@ struct HomeView: View {
                     tile(1, "music", glyph: "♫  ♪\n ♪ ♫") { go("music") }
                     tile(2, "player", glyph: "[▮▮▮▯▯]\n lyrics") { go("player") }
                     tile(3, "youtube", glyph: "┌────┐\n│ ▶  │\n└────┘") { go(WebTab.youtube.id) }
-                    tile(4, "insta", glyph: "╭────╮\n│ ◎ •│\n╰────╯") { go(WebTab.instagram.id) }
+                    Button { go("ember") } label: {
+                        VStack(alignment: .leading, spacing: 0) {
+                            EmberMark(size: 36)
+                            Spacer(minLength: 8)
+                            Text("ember").font(.term(28)).foregroundColor(pal.ph).lineLimit(1).glow()
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
+                        .padding(.horizontal, 14).padding(.vertical, 12)
+                        .overlay(alignment: .topTrailing) { Text("4").font(.mono(11)).foregroundColor(pal.dim).padding(9) }
+                        .box(pal.lineStrong)
+                    }
                     ForEach(Array(tiles.custom.enumerated()), id: \.element.id) { i, t in
                         tile(5 + i, t.title.lowercased(), glyph: "┌──┐\n│◉ │\n└──┘") { go(t.id) }
                             .contextMenu { Button("Remove tile") { tiles.remove(t) } }
@@ -52,6 +63,10 @@ struct HomeView: View {
                 Text("mood " + String(repeating: "#", count: player.state?.is_playing == true ? 5 : 2)).font(.term(17)).foregroundColor(pal.quiet)
             }
             .glow()
+            if let l = ember.latest {
+                (Text("ember > ").foregroundColor(pal.ph) + Text(l).foregroundColor(pal.hi) + Text(" █").foregroundColor(pal.ph))
+                    .font(.term(22)).lineLimit(1).glow()
+            }
         }
     }
 
@@ -120,12 +135,12 @@ struct HomeView: View {
 
     private var prompt: some View {
         VStack(spacing: 8) {
-            Text("// type a song and hit enter to play it").font(.term(19)).foregroundColor(pal.quiet).glow()
+            Text("// type a song to play it, or start with @ember to talk to her").font(.term(19)).foregroundColor(pal.quiet).glow()
             HStack(spacing: 10) {
                 Text(">").font(.term(24)).foregroundColor(pal.ph)
                 TextField("", text: $query)
                     .font(.term(22)).foregroundColor(pal.hi).accentColor(pal.ph)
-                    .placeholder(when: query.isEmpty) { Text("search spotify...").font(.term(22)).foregroundColor(pal.dim) }
+                    .placeholder(when: query.isEmpty) { Text("search spotify, or @ember ...").font(.term(22)).foregroundColor(pal.dim) }
                     .padding(.horizontal, 12).padding(.vertical, 7)
                     .box(pal.ph)
                     .onSubmit(send)
@@ -138,6 +153,12 @@ struct HomeView: View {
     private func send() {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return }
+        query = ""
+        if q.lowercased().hasPrefix("@ember") {
+            go("ember")
+            Task { await ember.send(String(q.dropFirst(6)), playing: player.state?.item) }
+            return
+        }
         go("music")
         Task { await player.search(q); if let t = player.tracks.first { await player.play(t) } }
         query = ""

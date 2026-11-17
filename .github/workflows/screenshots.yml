@@ -38,7 +38,7 @@ jobs:
           mkdir -p shots
           xcrun simctl install "$UDID" build/Sim/Trollify.app
           for orient in landscape portrait; do
-            for s in boot home music player card settings; do
+            for s in boot home music player card ember settings; do
               xcrun simctl launch --terminate-running-process "$UDID" com.example.trollify -demo YES -screen "$s" -orient "$orient"
               sleep 12
               xcrun simctl io "$UDID" screenshot "shots/$s-$orient.png"

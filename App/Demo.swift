@@ -40,6 +40,17 @@ enum Demo {
     static let device = Device(id: "demo", name: "h3arth iPad", type: "Tablet", is_active: true)
     static let state = PlayerState(is_playing: true, item: tracks[0], progress_ms: 134_000, device: device)
 
+    /// Ember's side of the screenshots.
+    @MainActor static func seed(_ e: Ember) {
+        e.source = "pc"
+        e.pc.set(host: "192.168.1.20:47823", code: "demo")
+        e.msgs = [EmberMsg(fromEmber: false, text: "what do you think of this song"),
+                  EmberMsg(fromEmber: true, text: "( ^_^ ) low sun again? fourth time today. the synth under the second verse is doing all the work."),
+                  EmberMsg(fromEmber: false, text: "queue the rest of the album"),
+                  EmberMsg(fromEmber: true, text: "done. coastline static is next, the bridge on that one is the best part.")]
+        if screen == "player" { e.toast = EmberMsg(fromEmber: true, text: "the bridge is coming up. best part of the whole album.") }
+    }
+
     // Original placeholder lyrics, written for screenshots.
     static let lrc = """
     [00:00.00] We drove until the radio went quiet
