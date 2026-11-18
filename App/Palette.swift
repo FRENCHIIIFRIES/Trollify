@@ -43,6 +43,8 @@ enum Palette {
         return ArtAnalysis(colors: colors, dots: dots, field: field(cg))
     }
 
+    private static let ciContext = CIContext()
+
     /// The album colour field: the cover shrunk to 5x5 and spread back out, so the gradient is the
     /// cover's own colours in the cover's own places. Blurred and saturated once here, not every frame.
     static func field(_ cg: CGImage) -> UIImage? {
@@ -52,7 +54,7 @@ enum Palette {
             .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 22])
             .applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 1.7, kCIInputBrightnessKey: -0.04, kCIInputContrastKey: 1.1])
             .cropped(to: CGRect(x: 0, y: 0, width: 240, height: 240))
-        guard let out = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(blurred, from: blurred.extent) else { return nil }
+        guard let out = ciContext.createCGImage(blurred, from: blurred.extent) else { return nil }
         return UIImage(cgImage: out)
     }
 
@@ -89,7 +91,7 @@ final class ArtModel: ObservableObject {
         if img == nil, let (data, _) = try? await URLSession.shared.data(from: u) { img = UIImage(data: data) }
         // only remember the cover once it really loaded, so an interrupted download is tried again
         guard let img, !Task.isCancelled else { return }
-        ImageCache.shared.setObject(img, forKey: s as NSString)
+        ImageCache.put(img, s)
         let n = self.n
         let a = await Task.detached { Palette.analyze(img, n: n) }.value
         guard !Task.isCancelled else { return }   // a newer song started meanwhile
@@ -111,7 +113,6 @@ struct AlbumField: View {
                                    .init(color: .black.opacity(0.82), location: 1)], startPoint: .top, endPoint: .bottom)
             Image(uiImage: Palette.grain).resizable(resizingMode: .tile).opacity(0.07).blendMode(.overlay)
         }
-        .drawingGroup()
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }

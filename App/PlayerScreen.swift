@@ -24,7 +24,7 @@ struct PlayerScreen: View {
     private func full(_ t: Track, _ size: CGSize) -> some View {
         ZStack(alignment: .bottomLeading) {
             if let img = art.image {
-                Image(uiImage: img).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped().blur(radius: 1.5)
+                Image(uiImage: img).resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
             }
             LinearGradient(stops: [.init(color: .black.opacity(0.5), location: 0), .init(color: .black.opacity(0.15), location: 0.28),
                                    .init(color: pal.bg.opacity(0.75), location: 0.62), .init(color: .black.opacity(0.94), location: 1)],

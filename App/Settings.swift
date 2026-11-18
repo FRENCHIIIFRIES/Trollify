@@ -122,7 +122,7 @@ private struct Bar: View {
                     .shadow(color: .black, radius: 2).offset(x: g.size.width * value - 4)
             }
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { change(max(0, min(1, Double($0.location.x / g.size.width)))) })
+            .gesture(DragGesture(minimumDistance: 0).onChanged { if g.size.width > 0 { change(max(0, min(1, Double($0.location.x / g.size.width)))) } })
         }
         .frame(height: 28)
         .frame(maxWidth: 520)

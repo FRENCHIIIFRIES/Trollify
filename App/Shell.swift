@@ -76,6 +76,10 @@ struct Shell: View {
         .padding(12)
         .task { await player.start() }
         .task { await ember.listen() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            ImageCache.shared.removeAllObjects()
+            web.trim(keep: current)
+        }
         .onAppear { if Demo.on { Demo.seed(ember) } }
         .task(id: player.state?.item?.uri) {
             await nowArt.load(player.state?.item?.art)

@@ -42,13 +42,15 @@ final class TileStore: ObservableObject {
     }
 }
 
-/// Keeps each web view alive after first use so tabs don't reload when you switch.
+/// One live web page at a time, plus the PC panel: each WKWebView is a whole browser, and the
+/// iPad Air 2 has 2 GB, so pages you leave are closed (they reload when you come back).
 @MainActor
 final class WebStore: ObservableObject {
     private var views: [String: WKWebView] = [:]
 
     func view(for p: WebTab) -> WKWebView {
         if let v = views[p.id] { return v }
+        trim(keep: p.id)
         let cfg = WKWebViewConfiguration()
         cfg.allowsInlineMediaPlayback = true
         cfg.defaultWebpagePreferences.preferredContentMode = p.desktop ? .desktop : .recommended
@@ -60,6 +62,11 @@ final class WebStore: ObservableObject {
         if let u = URL(string: p.url) { v.load(URLRequest(url: u)) }
         views[p.id] = v
         return v
+    }
+
+    /// Closes every page except `keep` and the PC panel.
+    func trim(keep: String?) {
+        views = views.filter { $0.key == keep || $0.key == WebTab.pc.id }
     }
 }
 

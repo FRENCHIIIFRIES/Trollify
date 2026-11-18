@@ -47,7 +47,7 @@ extension UIColor {
     var hex: String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         getRed(&r, green: &g, blue: &b, alpha: &a)
-        let c = { (v: CGFloat) in Int((max(0, min(1, v)) * 255).rounded()) }
+        let c = { (v: CGFloat) in v.isFinite ? Int((max(0, min(1, v)) * 255).rounded()) : 0 }
         return String(format: "#%02X%02X%02X", c(r), c(g), c(b))
     }
 
@@ -150,7 +150,6 @@ struct Scanlines: View {
                 y += 3
             }
         }
-        .drawingGroup()
         .allowsHitTesting(false)
     }
 }

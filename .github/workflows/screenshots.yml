@@ -42,6 +42,8 @@ jobs:
               xcrun simctl launch --terminate-running-process "$UDID" com.example.trollify -demo YES -screen "$s" -orient "$orient"
               sleep 12
               xcrun simctl io "$UDID" screenshot "shots/$s-$orient.png"
+              # memory the app is using on this screen (simulator, so a guide not the iPad's exact number)
+              echo "$s-$orient: $(footprint -p Trollify 2>/dev/null | grep -m1 -i footprint)" >> shots/memory.txt
               if [ "$orient" = landscape ]; then sips -r 270 "shots/$s-$orient.png" >/dev/null; fi
             done
           done

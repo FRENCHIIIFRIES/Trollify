@@ -1,6 +1,9 @@
 import SwiftUI
 
-enum ImageCache { static let shared: NSCache<NSString, UIImage> = { let c = NSCache<NSString, UIImage>(); c.countLimit = 120; return c }() }
+enum ImageCache {
+    static let shared: NSCache<NSString, UIImage> = { let c = NSCache<NSString, UIImage>(); c.totalCostLimit = 24 << 20; return c }()   // ~24 MB of decoded covers
+    static func put(_ i: UIImage, _ k: String) { shared.setObject(i, forKey: k as NSString, cost: Int(i.size.width * i.size.height * i.scale * i.scale * 4)) }
+}
 
 /// Cover art with an in-memory cache and a short fade-in (AsyncImage re-downloads while scrolling).
 struct Art: View {
@@ -20,7 +23,7 @@ struct Art: View {
         guard let s = url else { img = nil; return }
         if let c = ImageCache.shared.object(forKey: s as NSString) { img = c; return }
         guard let u = URL(string: s), let (d, _) = try? await URLSession.shared.data(from: u), let i = UIImage(data: d) else { return }
-        ImageCache.shared.setObject(i, forKey: s as NSString)
+        ImageCache.put(i, s)
         withAnimation(.easeIn(duration: 0.2)) { img = i }
     }
 }

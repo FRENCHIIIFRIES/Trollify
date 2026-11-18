@@ -15,7 +15,6 @@ struct EmberMark: View {
             }
         }
         .frame(width: size, height: size)
-        .drawingGroup()
         .shadow(color: Color(Pal.emberOrange).opacity(0.45), radius: size / 10)
     }
 }
@@ -72,7 +71,6 @@ struct DitherArt: View {
             }
         }
         .frame(width: size, height: size)
-        .drawingGroup()
     }
 }
 
