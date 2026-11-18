@@ -106,14 +106,14 @@ final class ArtModel: ObservableObject {
 struct AlbumField: View {
     let field: UIImage?
     var body: some View {
-        ZStack {
-            Color(red: 0.05, green: 0.03, blue: 0.06)
-            if let field { Image(uiImage: field).resizable().scaledToFill() }
-            LinearGradient(stops: [.init(color: .black.opacity(0.18), location: 0), .init(color: .black.opacity(0.4), location: 0.42),
-                                   .init(color: .black.opacity(0.82), location: 1)], startPoint: .top, endPoint: .bottom)
-            Image(uiImage: Palette.grain).resizable(resizingMode: .tile).opacity(0.07).blendMode(.overlay)
-        }
-        .ignoresSafeArea()
+        // overlays, not a ZStack: a scaled-to-fill square must not grow the page past the screen
+        Color(red: 0.05, green: 0.03, blue: 0.06)
+            .overlay { if let field { Image(uiImage: field).resizable().scaledToFill() } }
+            .overlay(LinearGradient(stops: [.init(color: .black.opacity(0.18), location: 0), .init(color: .black.opacity(0.4), location: 0.42),
+                                            .init(color: .black.opacity(0.82), location: 1)], startPoint: .top, endPoint: .bottom))
+            .overlay(Image(uiImage: Palette.grain).resizable(resizingMode: .tile).opacity(0.07).blendMode(.overlay))
+            .clipped()
+            .ignoresSafeArea()
         .allowsHitTesting(false)
     }
 }
