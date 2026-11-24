@@ -35,6 +35,7 @@ struct RootView: View {
     @AppStorage("opt.color") private var hex = Pal.phosphor
     @AppStorage("opt.boot") private var bootOn = true
     @State private var booting = true
+    @State private var crash = Demo.on ? nil : CrashLog.take()
 
     var body: some View {
         let pal = Pal(UIColor(hex: hex) ?? UIColor(hex: Pal.phosphor)!)
@@ -48,6 +49,7 @@ struct RootView: View {
             pal.bg.ignoresSafeArea()
             if Demo.on { DemoFrame(content: app) } else { app }
         }
+        .overlay { if let c = crash, !booting || !bootOn { CrashReport(text: c) { crash = nil } } }
         .environment(\.pal, pal)
         .buttonStyle(PressStyle())
         .preferredColorScheme(.dark)
@@ -212,5 +214,6 @@ struct MusicView: View {
 
 @main
 struct TrollifyApp: App {
+    init() { CrashLog.install() }
     var body: some Scene { WindowGroup { RootView() } }
 }

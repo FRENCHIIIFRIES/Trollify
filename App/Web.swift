@@ -47,15 +47,20 @@ final class TileStore: ObservableObject {
 @MainActor
 final class WebStore: ObservableObject {
     private var views: [String: WKWebView] = [:]
+    private let popups = Popups()
 
     func view(for p: WebTab) -> WKWebView {
         if let v = views[p.id] { return v }
         trim(keep: p.id)
         let cfg = WKWebViewConfiguration()
         cfg.allowsInlineMediaPlayback = true
+        cfg.preferences.javaScriptCanOpenWindowsAutomatically = true
+        // look like Safari: Instagram and Google refuse logins from browsers that look embedded
+        cfg.applicationNameForUserAgent = "Version/15.8 Mobile/15E148 Safari/604.1"
         cfg.defaultWebpagePreferences.preferredContentMode = p.desktop ? .desktop : .recommended
         let v = WKWebView(frame: .zero, configuration: cfg)
         v.allowsBackForwardNavigationGestures = true
+        v.uiDelegate = popups
         v.isOpaque = false
         v.backgroundColor = .black
         v.scrollView.backgroundColor = .black
@@ -97,5 +102,15 @@ struct WebPane: View {
             .padding(.horizontal, 14).padding(.vertical, 6)
             WebRep(store: store, page: page)
         }
+    }
+}
+
+/// Logins (Instagram, Google) open a pop-up window; a WKWebView ignores those unless told what to do,
+/// which left the login stuck. Open them in the same page instead.
+final class Popups: NSObject, WKUIDelegate {
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if navigationAction.targetFrame == nil { webView.load(navigationAction.request) }
+        return nil
     }
 }
